@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: API-GATEWAY
+  cloud:
+    gateway:
+      routes:
+        - id: books-available-service
+          uri: lb://BOOKS-AVAILABLE-SERVICE
+          predicates:
+            - Path=/api/v1/books/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: books-available-circuit
+                fallbackUri: redirect:/fallback/books-available-service
+        - id: books-sell-service
+          uri: lb://BOOKS-SELL-SERVICE
+          predicates:
+            - Path=/api/v1/sells/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: books-sell-circuit
+                fallbackUri: redirect:/fallback/books-sell-service
+        - id: books-forecast-service
+          uri: lb://BOOKS-FORECAST-SERVICE
+          predicates:
+            - Path=/api/v1/forecast/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: books-forecast-circuit
+                fallbackUri: redirect:/fallback/books-forecast-service
+        - id: eureka-server
+          uri: http://eureka@localhost:8761
+          predicates:
+            - Path=/eureka/web
+          filters:
+            - SetPath=/
+        - id: eureka-server-static
+          uri: http://eureka@localhost:8761
+          predicates:
+            - Path=/eureka/**
+#      default-filters:
+#        - TokenRelay=
+      discovery:
+        locator:
+          enabled: true
+  main:
+    web-application-type: reactive
+
+resilience4j.timelimiter:
+  configs:
+    default:
+      cancelRunningFuture: false
+      timeoutDuration: 20s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka@localhost:8761/eureka/

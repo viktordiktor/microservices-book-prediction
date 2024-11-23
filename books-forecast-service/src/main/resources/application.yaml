@@ -1,0 +1,50 @@
+spring:
+  messages:
+    basename: validation
+  datasource:
+    url: jdbc:postgresql://localhost:5432/forecast_books?allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&autoReconnect=true&useSSL=false
+    username: postgres
+    password: postgres
+  liquibase:
+    enabled: false
+  application:
+    name: BOOKS-FORECAST-SERVICE
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka@localhost:8761/eureka/
+server:
+  port: 8083
+
+feign:
+  client:
+    config:
+      books:
+        name: BOOKS-AVAILABLE-SERVICE
+        path: /api/v1/books
+      sell:
+        name: BOOKS-SELL-SERVICE
+        path: /api/v1/sells
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      availableBooksBreaker: &circuitbreakerConfig
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: TIME_BASED
+        minimumNumberOfCalls: 20
+        waitDurationInOpenState: 50s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      sellsBooksBreaker: *circuitbreakerConfig
+  retry:
+    instances:
+      availableBooksRetry: &retryConfig
+        maxAttempts: 3
+        waitDuration: 30s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+      sellsBooksRetry: *retryConfig
