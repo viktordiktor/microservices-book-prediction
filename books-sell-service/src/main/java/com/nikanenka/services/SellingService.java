@@ -6,6 +6,7 @@ import com.nikanenka.dto.PageResponse;
 import com.nikanenka.dto.SellingRequest;
 import com.nikanenka.dto.SellingResponse;
 import com.nikanenka.models.feign.enums.Genre;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +19,8 @@ public interface SellingService {
     SellingResponse getSellById(UUID id);
 
     SellingResponse createSell(SellingRequest createSellRequest);
+
+    List<SellingResponse> batchFileCreateOrders(MultipartFile excelFile);
 
     SellingResponse editSell(UUID id, SellingRequest editSellRequest);
 

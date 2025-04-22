@@ -128,3 +128,49 @@ export const updateBook = async (book, values, file, additionalFileList, setIsLo
         setIsLoading(false);
     }
 };
+
+// Запрос для получения прогнозируемых данных с пагинацией и сортировкой
+export const getOrderForecasts = async (
+    pageNumber = 0,
+    pageSize = 10,
+    sortField = 'id',
+    sortType = 'asc'
+) => {
+    const url = new URL(`http://localhost:8010/proxy/api/v1/books/forecast/all`);
+    url.searchParams.append('pageNumber', pageNumber);
+    url.searchParams.append('pageSize', pageSize);
+    url.searchParams.append('sortField', sortField);
+    url.searchParams.append('sortType', sortType);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+};
+
+// Запрос для экспорта прогнозируемых данных в Excel
+export const exportForecastsToExcel = async () => {
+    const response = await fetch(
+        `http://localhost:8010/proxy/api/v1/books/forecast/excel-export`
+    );
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Обрабатываем ответ как blob (бинарные данные)
+    const blob = await response.blob();
+
+    // Создаем ссылку для скачивания
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', 'generated_forecasts.xlsx');
+    document.body.appendChild(link);
+    link.click();
+
+    // Очищаем
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+};

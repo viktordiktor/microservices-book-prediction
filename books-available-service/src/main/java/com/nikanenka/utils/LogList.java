@@ -12,4 +12,5 @@ public class LogList {
     public static final String LOG_BAD_REQUEST_ERROR = "Bad Request exception thrown: {}";
     public static final String LOG_CONFLICT_ERROR = "Conflict exception thrown: {}";
     public static final String LOG_METHOD_ARGUMENT_ERROR = "Not Valid Method Argument exception thrown: {}";
+    public static final String LOG_DECODE_ERROR = "Error during decoding response: {}";
 }

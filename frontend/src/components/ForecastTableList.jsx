@@ -27,50 +27,79 @@ export const ForecastTableList = () => {
             title: 'ID',
             dataIndex: 'id',
             key: 'id',
-            render: (id) => ( // Modified render function for the ID column
+            render: (id) => (
                 <Link to={`/forecast/${id}`} onClick={(e) => {
-                    e.preventDefault(); // Prevents default link behavior
-                    navigate(`/forecast/${id}`); // Use navigate for programmatic navigation
+                    e.preventDefault();
+                    navigate(`/forecast/${id}`);
                 }}>
                     {id}
                 </Link>
             ),
         },
         {
-            title: 'Начальный промежуток данных',
-            dataIndex: 'fromDate',
-            key: 'fromDate',
-        },
-        {
-            title: 'Конечный промежуток данных',
-            dataIndex: 'toDate',
-            key: 'toDate',
-        },
-        {
-            title: 'Количество прогнозируемых дней',
-            dataIndex: 'daysNecessaryTo',
-            key: 'daysNecessaryTo',
-        },
-        {
-            title: 'ID книги',
-            dataIndex: 'bookId',
-            key: 'bookId',
-            render: (bookId) => (
-                <Link to={`/books/${bookId}`} onClick={(e) => {
-                    e.preventDefault();
-                    navigate(`/books/${bookId}`)
-                }}>
-                    {bookId}
+            title: 'Название книги',
+            dataIndex: 'bookTitle',
+            key: 'bookTitle',
+            render: (bookTitle, record) => (
+                <Link
+                    to={`/books/${record.bookId}`}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/books/${record.bookId}`);
+                    }}
+                >
+                    {bookTitle}
                 </Link>
             ),
+        },
+        {
+            title: 'Страховой запас',
+            dataIndex: 'roundedInsuranceStock',
+            key: 'insuranceStock',
+            align: 'center',
+            render: (value) => `${value} шт.`
+        },
+        {
+            title: 'Точка заказа',
+            dataIndex: 'roundedOrderPoint',
+            key: 'orderPoint',
+            align: 'center',
+            render: (value) => `${value} шт.`
+        },
+        {
+            title: 'Оптимальная партия',
+            dataIndex: 'roundedOptimalBatchSize',
+            key: 'optimalBatchSize',
+            align: 'center',
+            render: (value) => `${value} шт.`
+        },
+        {
+            title: 'Срок выполнения заказа',
+            dataIndex: 'orderLeadTime',
+            key: 'orderLeadTime',
+            align: 'center',
+            render: (value) => `${value} дней`
+        },
+        {
+            title: 'Дата прогноза',
+            key: 'forecastDate',
+            align: 'center',
+            render: (_, record) => {
+                return Object.keys(record.previousSales)[0]
+            }
         },
         {
             title: 'Действия',
             key: 'action',
             render: (text, record) => (
                 <Space size="middle">
-                    <Button type="primary" danger shape="circle" icon={<DeleteOutlined/>}
-                            onClick={() => handleDelete(record.id)}/>
+                    <Button
+                        type="primary"
+                        danger
+                        shape="circle"
+                        icon={<DeleteOutlined/>}
+                        onClick={() => handleDelete(record.id)}
+                    />
                 </Space>
             ),
         },

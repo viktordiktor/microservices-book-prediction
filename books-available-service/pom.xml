@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>books-count-service</artifactId>
+    <artifactId>books-available-service</artifactId>
     <packaging>jar</packaging>
 
-    <name>books-count-service</name>
+    <name>books-available-service</name>
     <url>http://maven.apache.org</url>
 
     <properties>
@@ -26,6 +26,7 @@
         <feign-micrometer.version>13.2.1</feign-micrometer.version>
         <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
         <org-json.version>20240303</org-json.version>
+        <poi.version>5.4.0</poi.version>
     </properties>
 
     <dependencies>
@@ -140,6 +141,22 @@
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>${org-json.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+            <version>${circuit-breaker.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
         </dependency>
     </dependencies>
 

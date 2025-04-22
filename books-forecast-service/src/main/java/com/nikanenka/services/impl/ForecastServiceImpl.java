@@ -2,34 +2,33 @@ package com.nikanenka.services.impl;
 
 import com.nikanenka.dto.ForecastRequest;
 import com.nikanenka.dto.ForecastResponse;
-import com.nikanenka.dto.GlobalForecastResponse;
 import com.nikanenka.dto.PageResponse;
 import com.nikanenka.dto.feign.BookResponse;
 import com.nikanenka.dto.feign.SellingResponse;
 import com.nikanenka.exceptions.ForecastNotFoundException;
 import com.nikanenka.models.Forecast;
-import com.nikanenka.models.ForecastMethod;
-import com.nikanenka.models.GlobalForecast;
 import com.nikanenka.repositories.ForecastRepository;
-import com.nikanenka.repositories.GlobalForecastRepository;
 import com.nikanenka.services.ForecastService;
 import com.nikanenka.services.feign.BookService;
 import com.nikanenka.services.feign.SellService;
+import com.nikanenka.utils.ExcelUtil;
 import com.nikanenka.utils.ForecastUtil;
 import com.nikanenka.utils.LogList;
 import com.nikanenka.utils.PageUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -39,28 +38,41 @@ import java.util.UUID;
 @Slf4j
 public class ForecastServiceImpl implements ForecastService {
     private final ForecastRepository forecastRepository;
-    private final GlobalForecastRepository globalForecastRepository;
     private final SellService sellService;
     private final BookService bookService;
     private final ModelMapper modelMapper;
 
     @Override
-    public PageResponse<GlobalForecastResponse> getAllForecasts(int pageNumber, int pageSize, String sortField, String sortType, String searchRequest) {
+    public PageResponse<ForecastResponse> getAllForecasts(int pageNumber, int pageSize, String sortField, String sortType) {
         Pageable pageable = PageUtil
                 .createPageable(pageNumber, pageSize, sortField, sortType, SellingResponse.class);
 
-        Page<GlobalForecast> page;
-        if (searchRequest != null && !searchRequest.trim().isEmpty()) {
-            page = globalForecastRepository.searchByFields(searchRequest, pageable);
-        } else {
-            page = globalForecastRepository.findAll(pageable);
-        }
+        Page<Forecast> page = forecastRepository.findAll(pageable);
 
-        List<GlobalForecastResponse> forecasts = page.getContent().stream()
-                .map(forecast -> modelMapper.map(forecast, GlobalForecastResponse.class))
+        List<ForecastResponse> forecasts = page.getContent().stream()
+                .map(forecast -> {
+                    ForecastResponse response = modelMapper.map(forecast, ForecastResponse.class);
+
+                    if (forecast.getPreviousSales() != null) {
+                        Map<LocalDate, Integer> sortedSales = new LinkedHashMap<>();
+                        forecast.getPreviousSales().entrySet().stream()
+                                .sorted(Map.Entry.<LocalDate, Integer>comparingByKey().reversed())
+                                .forEachOrdered(entry -> sortedSales.put(entry.getKey(), entry.getValue()));
+
+                        response.setPreviousSales(sortedSales);
+                    }
+
+                    return response;
+                })
                 .toList();
+        forecasts.forEach(forecast -> {
+            BookResponse bookResponse = bookService.getBookById(forecast.getBookId());
+            if (bookResponse.getErrorMessage() == null) {
+                forecast.setBookTitle(bookResponse.getTitle());
+            }
+        });
 
-        return PageResponse.<GlobalForecastResponse>builder()
+        return PageResponse.<ForecastResponse>builder()
                 .objectList(forecasts)
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
@@ -68,77 +80,76 @@ public class ForecastServiceImpl implements ForecastService {
     }
 
     @Override
-    public GlobalForecastResponse getForecastById(UUID id) {
-        GlobalForecast globalForecast = getOrThrow(id);
+    public Resource getExcelAllForecasts() {
+        return ExcelUtil.generateForecastExport(forecastRepository.findAll());
+    }
+
+    @Override
+    public ForecastResponse getForecastById(UUID id) {
+        Forecast forecast = getOrThrow(id);
         log.info(LogList.LOG_GET_FORECAST, id);
-        GlobalForecastResponse forecastResponse = modelMapper.map(globalForecast, GlobalForecastResponse.class);
-        forecastResponse.setForecastResponses(globalForecast.getForecasts()
-                .stream()
-                .map(forecast -> modelMapper.map(forecast, ForecastResponse.class))
-                .toList());
+        ForecastResponse forecastResponse = modelMapper.map(forecast, ForecastResponse.class);
+        BookResponse bookResponse = bookService.getBookById(forecast.getBookId());
+        if (bookResponse.getErrorMessage() == null) {
+            forecastResponse.setBookTitle(bookResponse.getTitle());
+        }
         return forecastResponse;
+    }
+
+    @Override
+    public ForecastResponse getForecastByBookId(UUID bookId) {
+        Optional<Forecast> optionalForecastByBook = forecastRepository.findByBookId(bookId);
+        return modelMapper.map(
+                optionalForecastByBook.orElseThrow(ForecastNotFoundException::new), ForecastResponse.class);
     }
 
     @Override
     @Transactional
-    public GlobalForecastResponse createForecast(ForecastRequest createForecastRequest) {
+    public ForecastResponse createForecast(ForecastRequest createForecastRequest) {
+        Forecast savingForecast = modelMapper.map(createForecastRequest, Forecast.class);
         BookResponse book = bookService.getBookById(createForecastRequest.getBookId());
+
+        Optional<Forecast> optionalForecastByBook = forecastRepository.findByBookId(book.getId());
+        if (optionalForecastByBook.isPresent()) {
+            forecastRepository.deleteById(optionalForecastByBook.get().getId());
+        }
+
+        LocalDate monthAgoDate = LocalDate.now().minusMonths(1);
         List<SellingResponse> bookSellsByDays = sellService.getDaySellsByBookIdAndDate(
-                book.getId(), createForecastRequest.getFromDate(), createForecastRequest.getToDate());
+                book.getId(), monthAgoDate, LocalDate.now());
         TreeMap<LocalDate, Integer> existingBookSells = new TreeMap<>();
         for (SellingResponse bookDaySell : bookSellsByDays) {
             existingBookSells.put(bookDaySell.getDate(), bookDaySell.getAmount());
         }
+        savingForecast.setPreviousSales(existingBookSells);
 
-        GlobalForecast globalForecast = modelMapper.map(createForecastRequest, GlobalForecast.class);
+        int soldBooks = bookSellsByDays.stream().mapToInt(SellingResponse::getAmount).sum();
+        double averageSells = (double) soldBooks / ChronoUnit.DAYS.between(monthAgoDate, LocalDate.now());
 
-        List<Forecast> forecastsToSave = new ArrayList<>();
-        if (createForecastRequest.getMethods().contains(ForecastMethod.EXPONENTIAL_SMOOTHING)) {
-            Forecast forecast = ForecastUtil.getExponentialSmoothingForecast(book, bookSellsByDays, createForecastRequest);
-            forecast.setGlobalForecast(globalForecast);
-            forecastsToSave.add(forecast);
-        }
-        if (createForecastRequest.getMethods().contains(ForecastMethod.LINEAR_REGRESSION)) {
-            Forecast forecast = ForecastUtil.getLinearRegressionForecast(book, bookSellsByDays, createForecastRequest);
-            forecast.setGlobalForecast(globalForecast);
-            forecastsToSave.add(forecast);
-        }
-        if (createForecastRequest.getMethods().contains(ForecastMethod.AVERAGE)) {
-            Forecast forecast = ForecastUtil.getAverageForecast(book, bookSellsByDays, createForecastRequest);
-            forecast.setGlobalForecast(globalForecast);
-            forecastsToSave.add(forecast);
-        }
+        double insuranceStock = ForecastUtil.getInsuranceStock(createForecastRequest, averageSells);
+        savingForecast.setInsuranceStock(insuranceStock);
+        savingForecast.setRoundedInsuranceStock((int) Math.ceil(insuranceStock));
 
-        forecastsToSave.forEach(forecast -> {
-            try {
-                forecastRepository.save(forecast);
-            } catch (Exception e) {
-                log.error("Error saving forecast: ", e);
-            }
-        });
+        double orderPoint = ForecastUtil.getOrderPoint(createForecastRequest, averageSells);
+        savingForecast.setOrderPoint(orderPoint);
+        savingForecast.setRoundedOrderPoint((int) Math.ceil(orderPoint));
 
-        globalForecast.setForecasts(new HashSet<>(forecastsToSave));
-        globalForecast.setCurrentAmount(book.getAmount());
-        globalForecast.setPreviousSales(existingBookSells);
-        globalForecast = globalForecastRepository.save(globalForecast);
+        double optimalBatch = ForecastUtil.getOptimalBatch(createForecastRequest, soldBooks);
+        savingForecast.setOptimalBatchSize(optimalBatch);
+        savingForecast.setRoundedOptimalBatchSize((int) Math.ceil(optimalBatch));
 
-        GlobalForecastResponse forecastResponse = modelMapper.map(globalForecast, GlobalForecastResponse.class);
-        log.info(LogList.LOG_CREATE_FORECAST, forecastResponse.getId());
-        forecastResponse.setForecastResponses(globalForecast.getForecasts()
-                .stream()
-                .map(forecast -> modelMapper.map(forecast, ForecastResponse.class))
-                .toList());
-        return forecastResponse;
+        forecastRepository.save(savingForecast);
+        return modelMapper.map(savingForecast, ForecastResponse.class);
     }
 
     @Override
     public void removeForecast(UUID id) {
-        globalForecastRepository.delete(getOrThrow(id));
+        forecastRepository.delete(getOrThrow(id));
         log.info(LogList.LOG_DELETE_FORECAST, id);
     }
 
-    private GlobalForecast getOrThrow(UUID id) {
-        Optional<GlobalForecast> optionalSelling = globalForecastRepository.findById(id);
+    private Forecast getOrThrow(UUID id) {
+        Optional<Forecast> optionalSelling = forecastRepository.findById(id);
         return optionalSelling.orElseThrow(ForecastNotFoundException::new);
     }
 }

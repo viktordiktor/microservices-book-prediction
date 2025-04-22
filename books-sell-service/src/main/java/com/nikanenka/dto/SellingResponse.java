@@ -17,4 +17,5 @@ public class SellingResponse {
     private Integer amount;
     private LocalDate date;
     private UUID bookId;
+    private String bookName;
 }

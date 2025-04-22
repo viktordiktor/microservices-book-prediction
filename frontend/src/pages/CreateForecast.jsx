@@ -1,76 +1,54 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect, useRef} from "react";
 import { GlobalStyle } from "../styles";
 import { Container } from "../components/common/Container";
 import { Header } from "../components/common/Header";
-import {Select, Checkbox, DatePicker, InputNumber, Button, Form, Alert, message} from "antd";
-import moment from "moment";
-import "moment/locale/ru";
-import {useNavigate, useSearchParams} from "react-router-dom";
+import { Select, InputNumber, Button, Form, Alert, message, Input } from "antd";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import {getSellByBookIdAndDates} from "../queries/sells";
-import {addForecast} from "../queries/forecast";
-
-
-moment.locale("ru");
-
-const { Option } = Select;
-const { RangePicker } = DatePicker;
-
+import { addForecast } from "../queries/forecast";
+import { getSellByBookIdAndDates } from "../queries/sells"; // Импортируем ваш метод
 
 const StyledForm = styled(Form)`
-  background: white; /* Голубовато-сине-фиолетовый градиент */
+  background: white;
   padding: 20px;
+  width: 60%;
   border-radius: 10px;
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
   color: white;
 
-  .ant-form-item { /* Target the Form.Item directly */
-    margin-bottom: 20px; /* Increased spacing between items */
+  .ant-form-item {
+    margin-bottom: 20px;
   }
 
   .ant-form-item-label {
     color: white;
-    font-weight: bold; /* Make labels bolder */
+    font-weight: bold;
   }
 
-  .ant-form-item-control-input { /* Target the input container */
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-  }
-
-  .ant-select, .ant-input-number, .ant-date-picker { 
-    width: 100%; 
-  }
-
-  .ant-form-item-control-input-content {
-    color: white;
-  }
-
-  .ant-select-selection__rendered {
-    color: white;
+  .ant-input-number, .ant-input {
+    width: 100%;
   }
 
   .ant-input-number-input {
     color: black;
-    background-color: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.5);
   }
 
   .ant-btn-primary {
-    background-color: #FFD700; /* Золотистый цвет для кнопки */
+    background-color: #FFD700;
     color: #333;
     border-color: #FFD700;
   }
 
   .ant-btn-primary:hover {
-    background-color: #FFD700; /* Золотистый цвет для кнопки */
+    background-color: #FFD700;
     color: #333;
     border-color: #FFD700;
   }
 
-  & > .ant-typography { //This is the key change.
-    color: white;
+  .ant-btn-primary[disabled] {
+    background-color: #f5f5f5;
+    color: rgba(0, 0, 0, 0.25);
+    border-color: #d9d9d9;
   }
 `;
 
@@ -82,63 +60,45 @@ const StyledTitle = styled.h1`
   margin-top: 60px;
 `;
 
-const StyledAlert = styled(Alert)`
-  background-color: rgba(255, 0, 0, 0.2); /* Красный с прозрачностью для Alert */
-  color: white;
-  border: 1px solid rgba(255, 0, 0, 0.5);
-`;
-
-
 const CreateForecastPage = () => {
     const [books, setBooks] = useState([]);
     const [selectedBook, setSelectedBook] = useState(null);
-    const [forecastMethods, setForecastMethods] = useState([]);
-    const [dateRange, setDateRange] = useState(null);
-    const [forecastDays, setForecastDays] = useState(1);
     const [form] = Form.useForm();
     const [loadingBooks, setLoadingBooks] = useState(true);
     const [fetchError, setFetchError] = useState(null);
     const [searchParams] = useSearchParams();
     const initialBookId = searchParams.get('bookId');
-    const [salesData, setSalesData] = useState(null); // New state for sales data
-    const [salesError, setSalesError] = useState(null); // New state for sales errors
-    const navigate = useNavigate(); // Хук для навигации
+    const navigate = useNavigate();
+    const [hasSales, setHasSales] = useState(true);
+    const [checkingSales, setCheckingSales] = useState(false);
+    const notificationShown = useRef(false);
 
     const handleSubmit = async () => {
-        form.validateFields()
-            .then(async (values) => {
-                const { book, methods, dateRange, days } = values;
-                const [startDate, endDate] = dateRange;
+        try {
+            const values = await form.validateFields();
 
-                const requestBody = {
-                    bookId: book,
-                    fromDate: startDate.format('YYYY-MM-DD'),
-                    toDate: endDate.format('YYYY-MM-DD'),
-                    methods: methods,
-                    daysNecessaryTo: days,
-                };
+            const requestBody = {
+                bookId: values.book,
+                insuranceDays: values.insuranceDays,
+                orderLeadTime: values.orderLeadTime,
+                orderPlacementCost: values.orderPlacementCost,
+                storageCostPerUnit: values.storageCostPerUnit
+            };
 
-                try {
-                    const forecastData = await addForecast(requestBody);
-                    message.success('Прогноз успешно сформирован!');
-                    navigate(`/forecast/${forecastData.id}`); // Перенаправление
-                } catch (error) {
-                    message.error(`Ошибка при создании прогноза: ${error.message}`);
-                }
-            })
-            .catch((info) => {
-                console.log('Validate Failed:', info);
-            });
+            const forecastData = await addForecast(requestBody);
+            message.success('Параметры успешно сохранены!');
+            navigate(`/forecast/${forecastData.id}`);
+        } catch (error) {
+            message.error(`Ошибка: ${error.message}`);
+        }
     };
-
 
     useEffect(() => {
         const fetchAllBooks = async () => {
             try {
-                const pageSize = 1000; // Достаточно большое число, чтобы получить все книги
+                const pageSize = 1000;
                 const data = await fetchBooks(0, pageSize);
                 setBooks(data.objectList);
-                console.log('data: ' + data);
             } catch (error) {
                 setFetchError(error.message);
             } finally {
@@ -153,9 +113,9 @@ const CreateForecastPage = () => {
         if (initialBookId) {
             setSelectedBook(initialBookId);
             form.setFieldsValue({ book: initialBookId });
+            checkBookSales(initialBookId);
         }
     }, [initialBookId, form]);
-
 
     const fetchBooks = async (pageNumber, pageSize) => {
         const response = await fetch(`http://localhost:8010/proxy/api/v1/books?pageSize=${pageSize}&pageNumber=${pageNumber}`);
@@ -165,60 +125,87 @@ const CreateForecastPage = () => {
         return response.json();
     };
 
+    const checkBookSales = async (bookId) => {
+        if (!bookId) return;
 
-    const handleBookChange = (value) => {
-        setSelectedBook(value);
-    };
+        setCheckingSales(true);
+        try {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
 
-    const handleMethodChange = (checkedValues) => {
-        setForecastMethods(checkedValues);
-    };
+            const formatDate = (date) => date.toISOString().split('T')[0];
 
-    const disabledDate = (current) => {
-        // Can only select days before today
-        return current && current >= moment().startOf('day');
-    };
+            const sales = await getSellByBookIdAndDates(
+                bookId,
+                formatDate(startDate),
+                formatDate(endDate)
+            );
 
-    const handleForecastDaysChange = (value) => {
-        setForecastDays(value);
-    };
+            const validSales = sales.filter(item => item.amount > 0);
+            setHasSales(validSales.length > 0);
 
-    const rangeConfig = {
-        rules: [{ type: 'array', required: true, message: 'Пожалуйста, выберите диапазон дат!' }],
-    };
-
-    const handleDateRangeChange = async (dates, dateStrings) => {
-        setDateRange(dates);
-        setSalesData(null); // Clear previous sales data
-        setSalesError(null); // Clear previous sales error
-
-        if (dates && selectedBook) {
-            const startDate = dateStrings[0];
-            const endDate = dateStrings[1];
-            try {
-                const data = await getSellByBookIdAndDates(selectedBook, startDate, endDate);
-                setSalesData(data);
-            } catch (error) {
-                setSalesError(error.message);
+            // Показываем уведомление только если продаж нет и уведомление еще не показывалось
+            if (validSales.length === 0 && !notificationShown.current) {
+                message.warning('Эта книга не продавалась за последний месяц. Прогноз невозможен.');
+                notificationShown.current = true;
             }
+        } catch (error) {
+            message.error(`Ошибка при проверке продаж: ${error.message}`);
+            setHasSales(false);
+        } finally {
+            setCheckingSales(false);
         }
     };
 
-    const totalSalesDays = salesData ? salesData.filter(sale => sale.amount > 0).length : 0;
+    useEffect(() => {
+        const fetchAllBooks = async () => {
+            try {
+                const pageSize = 1000;
+                const data = await fetchBooks(0, pageSize);
+                setBooks(data.objectList);
+            } catch (error) {
+                setFetchError(error.message);
+            } finally {
+                setLoadingBooks(false);
+            }
+        };
+
+        fetchAllBooks();
+    }, []);
+
+    useEffect(() => {
+        if (initialBookId) {
+            setSelectedBook(initialBookId);
+            form.setFieldsValue({ book: initialBookId });
+            checkBookSales(initialBookId);
+        }
+    }, [initialBookId, form]);
+
+    const handleBookChange = async (value) => {
+        notificationShown.current = false; // Сбрасываем флаг при изменении книги
+        setSelectedBook(value);
+        await checkBookSales(value);
+    };
 
     return (
         <>
             <GlobalStyle />
             <Container>
                 <Header />
-                <StyledTitle level={2}>Создать прогноз</StyledTitle>
+                <StyledTitle level={2}>Настройка параметров</StyledTitle>
                 <StyledForm form={form} layout="vertical" onFinish={handleSubmit}>
                     {fetchError && (
-                        <StyledAlert message={`Ошибка при загрузке книг: ${fetchError}`} type="error" showIcon />
+                        <Alert message={`Ошибка при загрузке книг: ${fetchError}`} type="error" showIcon />
                     )}
-                    <Form.Item label="Книга" name="book" rules={[{ required: true, message: 'Пожалуйста, выберите книгу!' }]}>
+
+                    <Form.Item
+                        label="Книга"
+                        name="book"
+                        rules={[{ required: true, message: 'Пожалуйста, выберите книгу!' }]}
+                    >
                         <Select
-                            loading={loadingBooks}
+                            loading={loadingBooks || checkingSales}
                             placeholder="Выберите книгу"
                             onChange={handleBookChange}
                             showSearch
@@ -228,50 +215,62 @@ const CreateForecastPage = () => {
                             }
                         >
                             {books.map((book) => (
-                                <Option key={book.id} value={book.id}>
+                                <Select.Option key={book.id} value={book.id}>
                                     {book.title} (ID: {book.id})
-                                </Option>
+                                </Select.Option>
                             ))}
                         </Select>
                     </Form.Item>
 
-                    <Form.Item label="Методы прогнозирования" name="methods" rules={[{ required: true, message: 'Пожалуйста, выберите хотя бы один метод!' }]}>
-                        <Checkbox.Group onChange={handleMethodChange} disabled={!salesData || totalSalesDays === 0}>
-                            {totalSalesDays === 0 ? (
-                                <StyledAlert message="Книга не была продана ни разу за указанный период - прогноз невозможен" type="error" showIcon />
-                            ) : totalSalesDays < 7 ? (
-                                <>
-                                    <Checkbox value="EXPONENTIAL_SMOOTHING">Экспоненциальное сглаживание</Checkbox>
-                                    <Checkbox value="AVERAGE">По среднему значению</Checkbox>
-                                    <Alert message="Книга была продана менее 7 дней за указанный период - линейная регрессия слишком неточна" type="warning" showIcon />
-                                </>
-                            ) : (
-                                <>
-                                    <Checkbox value="LINEAR_REGRESSION">Линейная регрессия</Checkbox>
-                                    <Checkbox value="EXPONENTIAL_SMOOTHING">Экспоненциальное сглаживание</Checkbox>
-                                    <Checkbox value="AVERAGE">По среднему значению</Checkbox>
-                                </>
-                            )}
-                        </Checkbox.Group>
+                    <Form.Item
+                        label="Количество дней страховки"
+                        name="insuranceDays"
+                        rules={[{ required: true, message: 'Введите количество дней!' }]}
+                    >
+                        <InputNumber min={1} max={365} style={{ width: '100%' }} />
                     </Form.Item>
 
-
-                    <Form.Item label="Диапазон дат" name="dateRange" {...rangeConfig}>
-                        <RangePicker
-                            disabledDate={disabledDate}
-                            format="DD.MM.YYYY"
-                            onChange={handleDateRangeChange}
-                        />
+                    <Form.Item
+                        label="Дни доставки"
+                        name="orderLeadTime"
+                        rules={[{ required: true, message: 'Введите количество дней!' }]}
+                    >
+                        <InputNumber min={1} max={365} style={{ width: '100%' }} />
                     </Form.Item>
 
-                    <Form.Item label="Количество дней для прогноза" name="days" rules={[{ required: true}]}>
-                        <InputNumber min={1} max={30} defaultValue={1} onChange={handleForecastDaysChange} />
+                    <Form.Item
+                        label="Цена размещения заказа"
+                        name="orderPlacementCost"
+                        rules={[{ required: true, message: 'Введите стоимость!' }]}
+                    >
+                        <Input type="number" step="0.01" min="0" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Цена хранения одной книги"
+                        name="storageCostPerUnit"
+                        rules={[{ required: true, message: 'Введите стоимость!' }]}
+                    >
+                        <Input type="number" step="0.01" min="0" />
                     </Form.Item>
 
                     <Form.Item>
-                        <Button type="primary" htmlType="submit">
-                            Создать прогноз
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            disabled={!hasSales || checkingSales}
+                            loading={checkingSales}
+                        >
+                            {hasSales ? 'Сохранить параметры' : 'Книга не продавалась за месяц'}
                         </Button>
+                        {!hasSales && (
+                            <Alert
+                                message="Невозможно создать прогноз: книга не продавалась за последний месяц"
+                                type="error"
+                                showIcon
+                                style={{ marginTop: '10px' }}
+                            />
+                        )}
                     </Form.Item>
                 </StyledForm>
             </Container>

@@ -1,0 +1,74 @@
+services:
+  postgredb:
+    image: postgres:latest
+    container_name: postgredb
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=def_user
+      - POSTGRES_PASSWORD=pass
+      - PG_DATA=/var/lib/postgresql/data
+    volumes:
+      - ./log-directory:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      - ./data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgres/sql/postgresql.conf
+
+  discovery-server:
+    image: discovery-server:latest
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    restart: always
+
+  api-gateway:
+    image: api-gateway:latest
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - discovery-server
+    restart: always
+
+  books-available-service:
+    container_name: books-available-service
+    image: books-available-service:latest
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - discovery-server
+      - api-gateway
+      - postgredb
+    restart: always
+
+  books-forecast-service:
+    container_name: books-forecast-service
+    image: books-forecast-service:latest
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - discovery-server
+      - api-gateway
+      - postgredb
+    restart: always
+
+  books-sell-service:
+    container_name: books-sell-service
+    image: books-sell-service:latest
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - discovery-server
+      - api-gateway
+      - postgredb
+    restart: always
+
+
+
+

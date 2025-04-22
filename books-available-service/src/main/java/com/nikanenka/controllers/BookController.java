@@ -1,14 +1,18 @@
 package com.nikanenka.controllers;
 
+import com.nikanenka.dto.BookChangeAmountRequest;
 import com.nikanenka.dto.BookRequest;
 import com.nikanenka.dto.BookResponse;
-import com.nikanenka.dto.BookSellRequest;
 import com.nikanenka.dto.PageResponse;
+import com.nikanenka.dto.feign.OrderRequiredResponse;
 import com.nikanenka.services.BookService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,6 +48,30 @@ public class BookController {
     @GetMapping("/{id}")
     public BookResponse getBookById(@PathVariable UUID id) {
         return bookService.getBookById(id);
+    }
+
+    @GetMapping("/forecast/{id}")
+    public OrderRequiredResponse getOrderRequiredByBookId(@PathVariable UUID id) {
+        return bookService.getOrderRequiredByBookId(id);
+    }
+
+    @GetMapping("/forecast/all")
+    public PageResponse<OrderRequiredResponse> getOrderRequiredCharacteristics(
+                                    @RequestParam(defaultValue = "0") int pageNumber,
+                                    @RequestParam(defaultValue = "10") int pageSize,
+                                    @RequestParam(defaultValue = "id") String sortField,
+                                    @RequestParam(defaultValue = "asc") String sortType) {
+        return bookService.getOrderRequiredCharacteristics(pageNumber, pageSize, sortField, sortType);
+    }
+
+    @GetMapping("/forecast/excel-export")
+    public ResponseEntity<Resource> getExcelAllForecasts() throws IOException {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=generated_forecasts.xlsx")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bookService.getExcelAllForecasts());
     }
 
     @GetMapping("/author/{authorName}")
@@ -78,7 +107,12 @@ public class BookController {
     }
 
     @PostMapping("/sell")
-    public BookResponse sellBook(@RequestBody BookSellRequest bookSellRequest) {
-        return bookService.sellBook(bookSellRequest);
+    public BookResponse sellBook(@RequestBody BookChangeAmountRequest bookChangeAmountRequest) {
+        return bookService.sellBook(bookChangeAmountRequest);
+    }
+
+    @PostMapping("/order")
+    public BookResponse orderBook(@RequestBody BookChangeAmountRequest bookChangeAmountRequest) {
+        return bookService.orderBook(bookChangeAmountRequest);
     }
 }

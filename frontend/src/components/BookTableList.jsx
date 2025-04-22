@@ -1,16 +1,86 @@
 import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {Button, Pagination, Space, Table} from 'antd';
+import {Button, Modal, Pagination, Space, Table} from 'antd';
 import {AreaChartOutlined, DeleteOutlined, EditOutlined} from '@ant-design/icons';
 import {useState} from "react";
 import AddEditBookModal from "./modal/AddEditBookModal";
 import {fetchBooks} from "../queries/books";
 import {Link, useNavigate} from "react-router-dom";
+import {getSellByAuthorAndDates, getSellByGenreAndDates} from "../queries/sells";
+import {getDates} from "../utils/utilFuncs";
+import SalesChart from "./SalesChart";
+import styled from "styled-components";
+
+const ModalContent = styled.div`
+  display: flex;
+  justify-content: center;  /* Центруем содержимое по горизонтали */
+  align-items: center;  /* Центруем содержимое по вертикали */
+  width: 100%;  /* Занимаем всю ширину */
+  padding: 20px;  /* Добавляем отступы */
+  box-sizing: border-box;  /* Учитываем отступы в ширине */
+`;
+
+const ChartModal = styled(Modal)`
+    margin-right: 350px;
+  .ant-modal-content {
+    width: 80vw;  /* Ширина модального окна */
+    max-width: 900px;  /* Максимальная ширина */
+  }
+  .ant-modal-body {
+    padding: 0;  /* Убираем внутренние отступы */
+  }
+`;
 
 export const BookTableList = () => {
     const [pageNumber, setPageNumber] = useState(0);
-    const [pageSize, setPageSize] = useState(8);
+    const [pageSize, setPageSize] = useState(7);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+
+    const [chartModalVisible, setChartModalVisible] = useState(false);
+    const [chartData, setChartData] = useState([]);
+    const [chartTitle, setChartTitle] = useState("");
+
+    const handleGenreClick = async (genre) => {
+        const { startDate, endDate } = getDates();
+        try {
+            const data = await getSellByGenreAndDates(genre, startDate, endDate);
+            const formattedChartData = data.map(item => ({ // Format data for SalesChart
+                name: item.date,
+                value: item.amount,
+            }));
+            setChartData(formattedChartData);  // Set the formatted data
+            setChartTitle("График продаж по жанру за последний месяц");
+            setChartModalVisible(true);
+        } catch (error) {
+            console.error("Ошибка при загрузке данных о продажах по жанру:", error);
+        }
+    };
+
+    const handleAuthorClick = async (author) => {
+        const { startDate, endDate } = getDates();
+        try {
+            const data = await getSellByAuthorAndDates(author, startDate, endDate);
+            const formattedChartData = data.map(item => ({ // Format data for SalesChart
+                name: item.date,
+                value: item.amount,
+            }));
+            setChartData(formattedChartData);  // Set the formatted data
+            setChartTitle("График продаж по автору за последний месяц");
+            setChartModalVisible(true);
+        } catch (error) {
+            console.error("Ошибка при загрузке данных о продажах по автору:", error);
+        }
+    };
+
+    const genres = [
+        {value: 'NOVEL', label: 'Роман'},
+        {value: 'POEMS', label: 'Стихи'},
+        {value: 'FANTASY', label: 'Фентези'},
+        {value: 'SCIENTIFIC', label: 'Научная литература'},
+        {value: 'TALE', label: 'Сказка'},
+        {value: 'BIOGRAPHY', label: 'Биография'},
+        {value: 'OTHER', label: 'Другое'},
+    ];
 
     const {data, isLoading, isError, error} = useQuery({
         queryKey: ['books', pageNumber, pageSize],
@@ -43,9 +113,28 @@ export const BookTableList = () => {
             key: 'title',
         },
         {
+            title: 'Жанр',
+            dataIndex: 'genre',
+            key: 'genre',
+            render: (genre) => {
+                const genreObj = genres.find(g => g.value === genre);
+                const genreLabel = genreObj ? genreObj.label : genre;
+                return (
+                    <Link onClick={(e) => { e.preventDefault(); handleGenreClick(genre); }} style={{ cursor: 'pointer' }}>
+                        {genreLabel}
+                    </Link>
+                );
+            },
+        },
+        {
             title: 'Автор',
             dataIndex: 'author',
             key: 'author',
+            render: (author) => (
+                <Link onClick={(e) => { e.preventDefault(); handleAuthorClick(author); }} style={{ cursor: 'pointer' }}>
+                    {author}
+                </Link>
+            ),
         },
         {
             title: 'Цена',
@@ -140,6 +229,16 @@ export const BookTableList = () => {
             />
             <AddEditBookModal visible={isModalVisible} onCancel={handleCancel}  onSave={handleSave}
                               book={bookToEdit}/>
+            <ChartModal
+                centered
+                visible={chartModalVisible}
+                onCancel={() => setChartModalVisible(false)}
+                footer={null}
+            >
+                <ModalContent>
+                    <SalesChart title={chartTitle} chartData={chartData} />
+                </ModalContent>
+            </ChartModal>
         </>
     );
 };

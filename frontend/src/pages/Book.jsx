@@ -1,132 +1,238 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import {useNavigate, useParams} from 'react-router-dom'; // Импортируем useParams
-import {Container} from '../components/common/Container';
-import {Header} from '../components/common/Header';
-import {getBookById} from "../queries/books";
-import {GlobalStyle} from "../styles";
-import {MdNavigateBefore, MdNavigateNext} from "react-icons/md";
-import {CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, XAxis, YAxis} from "recharts";
-import {getSellByBookIdAndDates} from "../queries/sells";
-import {Tooltip, Typography} from "antd";
+import { useNavigate, useParams } from 'react-router-dom';
+import { Container } from '../components/common/Container';
+import { Header } from '../components/common/Header';
+import { getBookById } from "../queries/books";
+import { GlobalStyle } from "../styles";
+import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
+import { getSellByBookIdAndDates } from "../queries/sells";
+import { getDates } from "../utils/utilFuncs";
+import { Card, Divider, Typography, Spin, Row, Col, Statistic, Tag } from 'antd';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
+} from 'recharts';
 
+const { Title, Text } = Typography;
 
 const genres = [
-    {value: 'NOVEL', label: 'Роман'},
-    {value: 'POEMS', label: 'Стихи'},
-    {value: 'FANTASY', label: 'Фентези'},
-    {value: 'SCIENTIFIC', label: 'Научная литература'},
-    {value: 'TALE', label: 'Сказка'},
-    {value: 'BIOGRAPHY', label: 'Биография'},
-    {value: 'OTHER', label: 'Другое'},
+    { value: 'NOVEL', label: 'Роман', color: '#f50' },
+    { value: 'POEMS', label: 'Стихи', color: '#2db7f5' },
+    { value: 'FANTASY', label: 'Фентези', color: '#87d068' },
+    { value: 'SCIENTIFIC', label: 'Научная литература', color: '#108ee9' },
+    { value: 'TALE', label: 'Сказка', color: '#ff85c0' },
+    { value: 'BIOGRAPHY', label: 'Биография', color: '#722ed1' },
+    { value: 'OTHER', label: 'Другое', color: '#8c8c8c' },
 ];
-const { Title } = Typography;
 
-const BookPageContainer = styled.section`
+const StyledCard = styled(Card)`
+  margin-top: 20px;
+  width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-bottom: 20px;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #1890ff;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #1478d4;
+  }
+`;
+
+const BookMainSection = styled.div`
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between; // Align content to left and right
-  gap: 20px; // Adjust gap as needed
-  padding: 20px;
-  margin-top: 30px;
+  gap: 40px;
+  margin-bottom: 40px;
 
   @media (max-width: 768px) {
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start; // Reset justification for mobile
     gap: 20px;
   }
 `;
 
-const BookInfoAndImageContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    gap: 60px;
-    width: calc(100% - 400px); // Уменьшите ширину для создания пространства для графика
-
-    @media (max-width: 768px) {
-        flex-direction: column;
-        width: 100%;
-    }
-`;
-
-const ChartContainer = styled.div`
-  width: 550px;
-  height: 500px;
-  padding-bottom: 60px; /* Добавили padding */
+const BookImagesSection = styled.div`
+  flex: 0 0 40%;
+  max-width: 400px;
 
   @media (max-width: 768px) {
-    width: 100%;
-    margin-top: 5px;
+    max-width: 100%;
   }
 `;
 
-const BookImages = styled.div`
-  width: 40%;
-  max-width: 480px;
-  margin-right: 0;
-
-  @media (max-width: 768px) {
-    width: 100%;
-  }
+const BookInfoSection = styled.div`
+  flex: 1;
 `;
-
 
 const CarouselContainer = styled.div`
-  width: 100%;
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 `;
 
 const CarouselImage = styled.img`
   width: 100%;
-  height: 100%; // Make image fill container
-  object-fit: contain; // Maintain aspect ratio and contain within container
-  display: block;  
-  border-radius: 10px;
-`;
-
-
-const BookInfoContainer = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  height: 400px;
+  object-fit: contain;
+  background: #f5f5f5;
+  display: block;
 `;
 
 const ArrowButton = styled.button`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.3);
   border: none;
-  padding: 10px 15px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 1;
-  border-radius: 50%; // Makes the button round
-  opacity: 0.7;
-  transition: opacity 0.3s; // Smooth transition for hover effect
+  z-index: 2;
+  transition: all 0.3s;
+  color: white;
 
   &:hover {
-    opacity: 1;
+    background: rgba(0, 0, 0, 0.5);
   }
 
   &[disabled] {
-    opacity: 0.2;
-    cursor: default;
-  }
-
-  svg {
-    fill: white;
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 `;
 
 const PrevButton = styled(ArrowButton)`
-  left: 10px;
+  left: 15px;
 `;
 
 const NextButton = styled(ArrowButton)`
-  right: 10px;
+  right: 15px;
+`;
+
+const BookTitle = styled(Title)`
+  margin-bottom: 20px !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+`;
+
+const BookAuthor = styled(Text)`
+  font-size: 18px;
+  color: #666;
+  display: block;
+  margin-bottom: 20px;
+`;
+
+const BookDetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const DetailItem = styled.div`
+  background: #f9f9f9;
+  padding: 12px;
+  border-radius: 8px;
+`;
+
+const DetailLabel = styled(Text)`
+  display: block;
+  color: #888;
+  font-size: 14px;
+`;
+
+const DetailValue = styled(Text)`
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+`;
+
+const PriceTag = styled.div`
+  background: #1890ff;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 20px;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 20px;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+`;
+
+const ActionButton = styled.button`
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+
+  &:first-child {
+    background: #1890ff;
+    color: white;
+
+    &:hover {
+      background: #40a9ff;
+    }
+  }
+
+  &:nth-child(2) {
+    background: #f5f5f5;
+    color: #666;
+
+    &:hover {
+      background: #e8e8e8;
+    }
+  }
+
+  &:last-child {
+    background: #52c41a;
+    color: white;
+    flex: 1;
+    min-width: 200px;
+
+    &:hover {
+      background: #73d13d;
+    }
+  }
+`;
+
+const ChartCard = styled(Card)`
+  margin-top: 30px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 `;
 
 const Carousel = ({ images }) => {
@@ -143,85 +249,28 @@ const Carousel = ({ images }) => {
     return (
         <CarouselContainer>
             <CarouselImage src={images[currentImage]} alt={`Изображение ${currentImage + 1}`} />
-            <PrevButton onClick={prevImage} disabled={images.length <= 1}>
-                <MdNavigateBefore size={30} />
-            </PrevButton>
-            <NextButton onClick={nextImage} disabled={images.length <= 1}>
-                <MdNavigateNext size={30} />
-            </NextButton>
+            {images.length > 1 && (
+                <>
+                    <PrevButton onClick={prevImage}>
+                        <MdNavigateBefore size={24} />
+                    </PrevButton>
+                    <NextButton onClick={nextImage}>
+                        <MdNavigateNext size={24} />
+                    </NextButton>
+                </>
+            )}
         </CarouselContainer>
     );
 };
-
-const BookTitle = styled.h1`
-  font-size: 3.5em;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 10px;
-  margin-top: 0;
-`;
-
-const BookDetail = styled.p`
-  font-size: 1.2em;
-  color: white;
-  margin-bottom: 10px; // Reduced margin between details
-`;
-
-const ButtonContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-`;
-
-const Button = styled.button`
-  padding: 12px 20px;
-  font-size: 1em;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
-  background-color: #2196F3; // Modern blue color
-  color: white;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1); // Subtle shadow by default
-
-  &:hover {
-    background-color: #1976D2; // Darker blue on hover
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15); // More pronounced shadow
-    transform: translateY(-2px); // Slight lift on hover
-  }
-
-  &:focus {
-    outline: none;
-  }
-
-  flex: ${({ size }) => (size === 'large' ? '1 0 100%' : '1 0 calc(50% - 5px)')};
-  margin-top: ${({ size, largeMargin }) => (size === 'large' && largeMargin ? '10px' : '0')};
-`;
-
-function getDates() {
-    const today = new Date(); // Текущая дата
-
-    // endDate - текущая дата в формате 'YYYY-MM-DD'
-    const endDate = today.toISOString().slice(0, 10);
-
-    // Вычисляем startDate - месяц назад от текущей даты
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 1);
-    const startDateString = startDate.toISOString().slice(0, 10);
-
-
-    return { startDate: startDateString, endDate };
-}
 
 const BookPage = () => {
     const { bookId } = useParams();
     const [book, setBook] = useState(null);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [salesData, setSalesData] = useState([]); // Состояние для данных о продажах
-    const [salesError, setSalesError] = useState(null); // Состояние для ошибок при получении данных о продажах
-    const [salesLoading, setSalesLoading] = useState(true); // Состояние загрузки данных о продажах
+    const [salesData, setSalesData] = useState([]);
+    const [salesError, setSalesError] = useState(null);
+    const [salesLoading, setSalesLoading] = useState(true);
     const navigate = useNavigate();
 
     const handleCreateForecastClick = () => {
@@ -261,66 +310,120 @@ const BookPage = () => {
         fetchSalesData();
     }, [bookId, book]);
 
+    if (loading) return (
+        <Container>
+            <Header />
+            <Spin size="large" style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }} />
+        </Container>
+    );
 
-    if (loading) return <div>Загрузка информации о книге...</div>;
-    if (error) return <div>Ошибка при загрузке информации о книге: {error.message}</div>;
-    if (!book) return <div>Книга не найдена</div>;
-    if (salesLoading) return <div>Загрузка данных о продажах...</div>;
-    if (salesError) return <div>Ошибка при загрузке данных о продажах: {salesError.message}</div>;
+    if (error) return (
+        <Container>
+            <Header />
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+                Ошибка при загрузке информации о книге
+            </div>
+        </Container>
+    );
 
+    if (!book) return (
+        <Container>
+            <Header />
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+                Книга не найдена
+            </div>
+        </Container>
+    );
 
     const allImages = [book.imageLink, ...book.additionalImagesLinks];
-    const genreLabel = genres.find(genre => genre.value === book.genre)?.label || "Неизвестный жанр";
-
-    // Преобразование данных для Recharts
+    const genreInfo = genres.find(genre => genre.value === book.genre) || { label: "Неизвестный жанр", color: '#8c8c8c' };
     const chartData = salesData.map(item => ({
-        name: item.date,
-        value: item.amount
+        date: item.date,
+        sales: item.amount
     }));
-
 
     return (
         <>
             <GlobalStyle />
             <Container>
                 <Header />
-                <BookPageContainer>
-                    <BookInfoAndImageContainer> {/* Wrap book info and images */}
-                        <BookImages>
+                <StyledCard>
+                    <BookMainSection>
+                        <BookImagesSection>
                             <Carousel images={allImages} />
-                        </BookImages>
-                        <BookInfoContainer>
-                        <BookTitle>{book.title}</BookTitle>
-                        <BookDetail>Автор: {book.author}</BookDetail>
-                        <BookDetail>Жанр: {genreLabel}</BookDetail>
-                        <BookDetail>Количество страниц: {book.pages}</BookDetail>
-                        <BookDetail>ISBN: {book.isbn}</BookDetail>
-                        <BookDetail>Год издания: {book.publicationYear}</BookDetail>
-                        <BookDetail>Количество на складе: {book.amount}</BookDetail>
-                        <BookDetail>Цена: {book.price} руб.</BookDetail>
-                        <ButtonContainer>
-                            <Button>Редактировать</Button>
-                            <Button>Удалить</Button>
-                            <Button size="large" largeMargin onClick={handleCreateForecastClick}>Сделать прогноз</Button>
-                        </ButtonContainer>
-                        </BookInfoContainer>
-                    </BookInfoAndImageContainer>
-                    <ChartContainer style={{ backgroundColor: 'white' }}>
-                        <Title level={5} style={{ textAlign: 'center'}}>
-                            График продаж за последний месяц
-                        </Title>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 5, bottom: 5 }}> {/* Увеличен верхний отступ */}
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
-                                <XAxis dataKey="name" />
-                                <YAxis label={{ value: 'Продажи', angle: -90, position: 'insideLeft' }}/>
-                                <Tooltip />
-                                <Legend />
-                                <Line type="monotone" name="Продажи/дн" dataKey="value" stroke="#007bff" strokeWidth={3} dot={{ stroke: '#007bff', strokeWidth: 3 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </BookPageContainer>
+                        </BookImagesSection>
+
+                        <BookInfoSection>
+                            <BookTitle level={2}>{book.title}</BookTitle>
+                            <BookAuthor>{book.author}</BookAuthor>
+
+                            <Tag color={genreInfo.color} style={{ fontSize: 14, padding: '4px 12px' }}>
+                                {genreInfo.label}
+                            </Tag>
+
+                            <PriceTag>{book.price} ₽</PriceTag>
+
+                            <BookDetailsGrid>
+                                <DetailItem>
+                                    <DetailLabel>Количество страниц</DetailLabel>
+                                    <DetailValue>{book.pages}</DetailValue>
+                                </DetailItem>
+
+                                <DetailItem>
+                                    <DetailLabel>ISBN</DetailLabel>
+                                    <DetailValue>{book.isbn}</DetailValue>
+                                </DetailItem>
+
+                                <DetailItem>
+                                    <DetailLabel>Год издания</DetailLabel>
+                                    <DetailValue>{book.publicationYear}</DetailValue>
+                                </DetailItem>
+
+                                <DetailItem>
+                                    <DetailLabel>На складе</DetailLabel>
+                                    <DetailValue>
+                                        <Text strong style={{ color: book.amount > 0 ? '#52c41a' : '#f5222d' }}>
+                                            {book.amount} шт.
+                                        </Text>
+                                    </DetailValue>
+                                </DetailItem>
+                            </BookDetailsGrid>
+
+                            <ActionButtons>
+                                <ActionButton>Редактировать</ActionButton>
+                                <ActionButton>Удалить</ActionButton>
+                                <ActionButton onClick={handleCreateForecastClick}>
+                                    Сделать прогноз
+                                </ActionButton>
+                            </ActionButtons>
+                        </BookInfoSection>
+                    </BookMainSection>
+
+                    <ChartCard>
+                        <Title level={4} style={{ marginBottom: 24 }}>Продажи за последний месяц</Title>
+                        {salesLoading ? (
+                            <Spin size="large" style={{ display: 'flex', justifyContent: 'center', padding: 40 }} />
+                        ) : salesError ? (
+                            <Text type="danger">Ошибка загрузки данных о продажах</Text>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <LineChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="date" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="sales"
+                                        stroke="#1890ff"
+                                        strokeWidth={2}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </ChartCard>
+                </StyledCard>
             </Container>
         </>
     );

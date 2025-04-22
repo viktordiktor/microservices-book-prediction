@@ -39,7 +39,7 @@ public class Book {
     @Enumerated(EnumType.STRING)
     private Genre genre;
     @Column(name="pages")
-    private String pages;
+    private Integer pages;
     @Column(name="isbn")
     private String isbn;
     @Column(name="publication_year")

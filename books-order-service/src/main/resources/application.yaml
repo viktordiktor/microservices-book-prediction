@@ -1,0 +1,54 @@
+spring:
+  messages:
+    basename: validation
+  datasource:
+    url: jdbc:postgresql://localhost:5432/order_books?allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&autoReconnect=true&useSSL=false
+    username: postgres
+    password: postgres
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        '[format_sql]': true
+    hibernate:
+      ddl-auto: validate
+    generate-ddl: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+  application:
+    name: BOOKS-ORDER-SERVICE
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka@localhost:8761/eureka/
+server:
+  port: 8084
+
+feign:
+  client:
+    config:
+      books:
+        name: BOOKS-AVAILABLE-SERVICE
+        path: /api/v1/books
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      availableBooksBreaker: &circuitbreakerConfig
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: TIME_BASED
+        minimumNumberOfCalls: 20
+        waitDurationInOpenState: 50s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      availableBooksRetry: &retryConfig
+        maxAttempts: 3
+        waitDuration: 30s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2

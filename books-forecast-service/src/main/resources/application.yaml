@@ -1,12 +1,25 @@
 spring:
+  ai:
+    ollama:
+      base-url: http://localhost:11434/
+      model: deepseek-r1:1.5b
   messages:
     basename: validation
   datasource:
     url: jdbc:postgresql://localhost:5432/forecast_books?allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&autoReconnect=true&useSSL=false
     username: postgres
     password: postgres
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        '[format_sql]': true
+    hibernate:
+      ddl-auto: validate
+    generate-ddl: false
   liquibase:
-    enabled: false
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
   application:
     name: BOOKS-FORECAST-SERVICE
 

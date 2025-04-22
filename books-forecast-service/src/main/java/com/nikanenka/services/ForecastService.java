@@ -1,18 +1,23 @@
 package com.nikanenka.services;
 
 import com.nikanenka.dto.ForecastRequest;
-import com.nikanenka.dto.GlobalForecastResponse;
+import com.nikanenka.dto.ForecastResponse;
 import com.nikanenka.dto.PageResponse;
+import org.springframework.core.io.Resource;
 
 import java.util.UUID;
 
 public interface ForecastService {
-    PageResponse<GlobalForecastResponse> getAllForecasts(
-            int pageNumber, int pageSize, String sortField, String sortType, String searchRequest);
+    PageResponse<ForecastResponse> getAllForecasts(
+            int pageNumber, int pageSize, String sortField, String sortType);
 
-    GlobalForecastResponse getForecastById(UUID id);
+    Resource getExcelAllForecasts();
 
-    GlobalForecastResponse createForecast(ForecastRequest createForecastRequest);
+    ForecastResponse getForecastById(UUID id);
+
+    ForecastResponse getForecastByBookId(UUID bookId);
+
+    ForecastResponse createForecast(ForecastRequest createForecastRequest);
 
     void removeForecast(UUID id);
 }

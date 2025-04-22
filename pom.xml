@@ -7,6 +7,7 @@
   <version>1.0-SNAPSHOT</version>
     <modules>
         <module>books-forecast-service</module>
+        <module>books-order-service</module>
     </modules>
     <packaging>pom</packaging>
 

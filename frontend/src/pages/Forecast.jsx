@@ -2,56 +2,88 @@ import { GlobalStyle } from "../styles";
 import { Container } from "../components/common/Container";
 import { Header } from "../components/common/Header";
 import React, { useEffect, useState } from "react";
-import { Card, Divider, Space, Typography, Spin, Row, Col, Descriptions } from "antd";
+import { Card, Divider, Typography, Spin, Row, Col, Descriptions, Statistic } from "antd";
 import {
     CartesianGrid,
-    Legend,
     Line,
     LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
-    YAxis,
+    YAxis
 } from "recharts";
 import { getForecastById } from "../queries/forecast";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 const StyledCard = styled(Card)`
   margin-top: 20px;
+  width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
-  max-height: calc(100vh - 100px);
-  width: 90%; 
+  padding-bottom: 20px;
+  
+  /* Стилизация скроллбара */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #1890ff;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #1478d4;
+  }
+  
+  scroll-behavior: smooth;
 `;
 
-const InfoSection = styled.div`
-  margin-bottom: 20px;
-  border: 1px solid #ccc;
-  padding: 15px;
-  border-radius: 5px;
+const SectionTitle = styled(Title)`
+  margin-top: 30px !important;
+  color: #1890ff !important;
 `;
 
-const MethodDescription = styled.div`
-  margin-bottom: 10px;
-  padding: 10px;
-  border: 1px solid #eee;
-  border-radius: 5px;
+const ParameterCard = styled(Card)`
+  margin: 15px 0;
+  border-left: 4px solid #1890ff;
+  border-radius: 8px;
 `;
 
-const SummarySection = styled.div`
-  margin-top: 15px;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+const ChartContainer = styled.div`
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: 24px 0;
 `;
 
-const SummaryText = styled(Text)`
-  font-size: 16px; /* Slightly larger font size */
-  font-weight: bold;
-  color: #337ab7; /* Ant Design's blue */
-`;
+const formatDate = (dateString) => {
+    try {
+        return format(new Date(dateString), 'dd MMM yyyy', { locale: ru });
+    } catch {
+        return dateString;
+    }
+};
+
+const formatCurrency = (value) =>
+    new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency: 'RUB',
+        minimumFractionDigits: 2
+    }).format(value);
 
 const ForecastPage = () => {
     const { forecastId } = useParams();
@@ -92,41 +124,19 @@ const ForecastPage = () => {
     }
 
     if (!forecastData) {
-        return <div>Error loading forecast data.</div>;
+        return (
+            <Container>
+                <Header />
+                <div style={{ marginTop: 20 }}>Ошибка загрузки данных прогноза</div>
+            </Container>
+        );
     }
 
-    const methodNames = {
-        EXPONENTIAL_SMOOTHING: "Экспоненциальное сглаживание",
-        LINEAR_REGRESSION: "Линейная регрессия",
-        AVERAGE: "По среднему",
-    };
-
-    const methodDescriptions = {
-        LINEAR_REGRESSION: "Метод, который используется для нахождения зависимости между одной переменной (зависимой) и одной или несколькими другими переменными (независимыми). Линейная регрессия учитывает тренд — направление, в котором движется зависимая переменная со временем.",
-        EXPONENTIAL_SMOOTHING: "Этот метод используется для прогнозирования временных рядов. Он придает больший вес более свежим данным, что помогает лучше учитывать изменения во времени. Сглаживание помогает уменьшить влияние случайных колебаний.",
-        AVERAGE: "Простой метод, который вычисляет среднее значение набора данных и использует его для прогноза. Это подходит для случаев, когда данные не имеют явного тренда или сезонности, и считается хорошим ориентиром для будущих значений.",
-    };
-
-    const combinedChartData = Object.entries(forecastData.previousSales).reduce((acc, [date, value]) => {
-        acc[date] = acc[date] || { date, value };
-        return acc;
-    }, {});
-
-    forecastData.forecastResponses.forEach((response) => {
-        Object.entries(response.dayForecast).forEach(([date, value]) => {
-            combinedChartData[date] = combinedChartData[date] || { date };
-            combinedChartData[date][response.method] = value;
-        });
-    });
-
-    const combinedChartDataArray = Object.values(combinedChartData);
-
-    const previousSalesDataArray = Object.entries(forecastData.previousSales).map(([date, value]) => ({
-        date,
-        value,
-    }));
-
-    const showCombinedChart = forecastData.forecastResponses.length > 1;
+    const chartData = Object.entries(forecastData.previousSales)
+        .map(([date, value]) => ({
+            date: formatDate(date),
+            Продажи: value
+        }));
 
     return (
         <>
@@ -134,83 +144,167 @@ const ForecastPage = () => {
             <Container>
                 <Header />
                 <StyledCard>
-                    <Title level={2}>Прогноз</Title>
-                    <InfoSection>
-                        <Row gutter={[16, 16]}>
-                            <Col span={12}>
-                                <Text strong>Период прогноза:</Text> <br/>
-                                <Text>С {forecastData.fromDate} по {forecastData.toDate}</Text>
-                            </Col>
-                            <Col span={12}>
-                                <Text strong>Продолжительность прогноза:</Text> <br/>
-                                <Text>{forecastData.daysNecessaryTo} дней</Text>
-                            </Col>
-                            <Col span={12}>
-                                <Text strong>Текущее количество книг:</Text> <br/>
-                                <Text>{forecastData.currentAmount}</Text>
-                            </Col>
-                        </Row>
-                    </InfoSection>
-                    <Divider />
+                    <Row gutter={[24, 24]}>
+                        <Col span={24}>
+                            <Title level={2}>
+                                Прогноз для книги: {forecastData.bookTitle}
+                            </Title>
+                            <Text type="secondary">
+                                ID прогноза: {forecastData.id}
+                            </Text>
+                        </Col>
 
-                    {showCombinedChart && (
-                        <div>
-                            <Title level={4}>Общий график</Title>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={combinedChartDataArray}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Legend />
-                                    {forecastData.forecastResponses.map((response) => (
-                                        <Line
-                                            key={response.method}
-                                            type="monotone"
-                                            dataKey={response.method}
-                                            stroke={"#" + Math.floor(Math.random()*16777215).toString(16)}
-                                            name={methodNames[response.method]}
+                        {/* Основные параметры */}
+                        <Col span={24}>
+                            <SectionTitle level={4}>Основные параметры</SectionTitle>
+                            <Row gutter={[16, 16]}>
+                                <Col xs={24} sm={12} md={8}>
+                                    <ParameterCard>
+                                        <Statistic
+                                            title="Страховые дни"
+                                            value={forecastData.insuranceDays}
+                                            suffix="дней"
                                         />
-                                    ))}
-                                    <Line
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke="green"
-                                        name="Предыдущие продажи"
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                            <Divider />
-                        </div>
-                    )}
+                                        <Text type="secondary">
+                                            Буфер безопасности для непредвиденных ситуаций
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
 
-                    {forecastData.forecastResponses.map((response) => (
-                        <div key={response.id}>
-                            <Title level={4}>{methodNames[response.method]}</Title>
-                            <MethodDescription>
-                                <Paragraph>{methodDescriptions[response.method]}</Paragraph>
-                            </MethodDescription>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={Object.entries(response.dayForecast).map(([date, value]) => ({ date, value }))}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Line type="monotone" dataKey="value" stroke="#8884d8" name={methodNames[response.method]} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                            <SummarySection>
-                                <Space direction="vertical">
-                                    <SummaryText strong>Итоговый прогноз: {response.summaryForecast}</SummaryText>
-                                    <SummaryText strong>
-                                        Итоговый округленный прогноз: {response.summaryRoundedForecast}
-                                    </SummaryText>
-                                </Space>
-                            </SummarySection>
-                            <Divider />
-                        </div>
-                    ))}
+                                <Col xs={24} sm={12} md={8}>
+                                    <ParameterCard>
+                                        <Statistic
+                                            title="Срок доставки"
+                                            value={forecastData.orderLeadTime}
+                                            suffix="дней"
+                                        />
+                                        <Text type="secondary">
+                                            Время от заказа до получения товара
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+
+                                <Col xs={24} sm={12} md={8}>
+                                    <ParameterCard>
+                                        <Statistic
+                                            title="Стоимость заказа"
+                                            value={formatCurrency(forecastData.orderPlacementCost)}
+                                        />
+                                        <Text type="secondary">
+                                            Средние расходы на оформление заказа
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+                            </Row>
+                        </Col>
+
+                        {/* График продаж */}
+                        <Col span={24}>
+                            <SectionTitle level={4}>История продаж</SectionTitle>
+                            <ChartContainer>
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <LineChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis
+                                            dataKey="date"
+                                            tick={{ angle: -45, textAnchor: 'end' }}
+                                        />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="Продажи"
+                                            stroke="#1890ff"
+                                            strokeWidth={2}
+                                            dot={{ fill: '#1890ff' }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </Col>
+
+                        {/* Параметры запасов */}
+                        <Col span={24}>
+                            <SectionTitle level={4}>Оптимальные параметры запасов</SectionTitle>
+                            <Row gutter={[16, 16]}>
+                                <Col xs={24} md={12}>
+                                    <ParameterCard>
+                                        <Title level={5}>Страховой запас</Title>
+                                        <Descriptions column={1}>
+                                            <Descriptions.Item label="Расчетное значение">
+                                                {forecastData.insuranceStock}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Рекомендуемое">
+                                                <Text strong>
+                                                    {forecastData.roundedInsuranceStock}
+                                                </Text>
+                                            </Descriptions.Item>
+                                        </Descriptions>
+                                        <Text type="secondary">
+                                            Минимальный запас для поддержания бесперебойных продаж
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+
+                                <Col xs={24} md={12}>
+                                    <ParameterCard>
+                                        <Title level={5}>Точка заказа</Title>
+                                        <Descriptions column={1}>
+                                            <Descriptions.Item label="Расчетное значение">
+                                                {forecastData.orderPoint}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Рекомендуемое">
+                                                <Text strong>
+                                                    {forecastData.roundedOrderPoint}
+                                                </Text>
+                                            </Descriptions.Item>
+                                        </Descriptions>
+                                        <Text type="secondary">
+                                            Уровень запаса для запуска нового заказа
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+
+                                <Col span={24}>
+                                    <ParameterCard>
+                                        <Title level={5}>Оптимальный размер заказа</Title>
+                                        <Descriptions column={1}>
+                                            <Descriptions.Item label="По формуле EOQ">
+                                                {forecastData.optimalBatchSize}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Рекомендуемый размер">
+                                                <Text strong>
+                                                    {forecastData.roundedOptimalBatchSize}
+                                                </Text>
+                                            </Descriptions.Item>
+                                        </Descriptions>
+                                        <Text type="secondary">
+                                            Экономически эффективный размер партии с учетом
+                                            стоимости заказа и хранения
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+                            </Row>
+                        </Col>
+
+                        {/* Экономические показатели */}
+                        <Col span={24}>
+                            <SectionTitle level={4}>Экономические параметры</SectionTitle>
+                            <Row gutter={[16, 16]}>
+                                <Col xs={24} sm={12}>
+                                    <ParameterCard>
+                                        <Statistic
+                                            title="Стоимость хранения"
+                                            value={formatCurrency(forecastData.storageCostPerUnit)}
+                                        />
+                                        <Text type="secondary">
+                                            Стоимость хранения одной единицы в день
+                                        </Text>
+                                    </ParameterCard>
+                                </Col>
+                            </Row>
+                        </Col>
+                    </Row>
                 </StyledCard>
             </Container>
         </>

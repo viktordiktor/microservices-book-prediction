@@ -2,20 +2,28 @@ package com.nikanenka.services.impl;
 
 import com.nikanenka.dto.BookRequest;
 import com.nikanenka.dto.BookResponse;
-import com.nikanenka.dto.BookSellRequest;
+import com.nikanenka.dto.BookChangeAmountRequest;
 import com.nikanenka.dto.PageResponse;
+import com.nikanenka.dto.feign.OrderRequiredResponse;
 import com.nikanenka.exceptions.BookAlreadyExistsException;
 import com.nikanenka.exceptions.BookNotFoundException;
 import com.nikanenka.exceptions.ImageRequiredException;
+import com.nikanenka.exceptions.RequestNotFoundException;
 import com.nikanenka.models.Book;
 import com.nikanenka.models.Image;
+import com.nikanenka.models.enums.Genre;
+import com.nikanenka.models.feign.ForecastResponse;
 import com.nikanenka.repositories.BookRepository;
 import com.nikanenka.services.BookService;
+import com.nikanenka.services.feign.ForecastService;
+import com.nikanenka.utils.ExcelUtil;
 import com.nikanenka.utils.LogList;
 import com.nikanenka.utils.PageUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.query.Order;
 import org.modelmapper.ModelMapper;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,6 +41,7 @@ import java.util.UUID;
 @Slf4j
 public class BookServiceImpl implements BookService {
     private final ImageServiceImpl imageService;
+    private final ForecastService forecastService;
     private final BookRepository bookRepository;
     private final ModelMapper modelMapper;
 
@@ -57,6 +66,24 @@ public class BookServiceImpl implements BookService {
                 .objectList(books)
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
+                .build();
+    }
+
+    @Override
+    public PageResponse<OrderRequiredResponse> getOrderRequiredCharacteristics(
+            int pageNumber, int pageSize, String sortField, String sortType) {
+        Pageable pageable = PageUtil.createPageable(pageNumber, pageSize, sortField, sortType, OrderRequiredResponse.class);
+
+        Page<Book> bookPage = bookRepository.findAll(pageable);
+
+        List<OrderRequiredResponse> orderRequiredResponses = bookPage.getContent().stream()
+                .map(book -> getOrderRequiredByBookId(book.getId()))
+                .toList();
+
+        return PageResponse.<OrderRequiredResponse>builder()
+                .objectList(orderRequiredResponses)
+                .totalElements(bookPage.getTotalElements())
+                .totalPages(bookPage.getTotalPages())
                 .build();
     }
 
@@ -157,10 +184,19 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
-    public BookResponse sellBook(BookSellRequest bookSellRequest) {
-        Book sellingBook = getOrThrow(bookSellRequest.getBookId());
+    public BookResponse sellBook(BookChangeAmountRequest bookChangeAmountRequest) {
+        Book sellingBook = getOrThrow(bookChangeAmountRequest.getBookId());
 
-        sellingBook.setAmount(sellingBook.getAmount() - bookSellRequest.getAmount());
+        sellingBook.setAmount(sellingBook.getAmount() - bookChangeAmountRequest.getAmount());
+
+        return modelMapper.map(bookRepository.save(sellingBook), BookResponse.class);
+    }
+
+    @Override
+    public BookResponse orderBook(BookChangeAmountRequest bookChangeAmountRequest) {
+        Book sellingBook = getOrThrow(bookChangeAmountRequest.getBookId());
+
+        sellingBook.setAmount(sellingBook.getAmount() + bookChangeAmountRequest.getAmount());
 
         return modelMapper.map(bookRepository.save(sellingBook), BookResponse.class);
     }
@@ -175,10 +211,40 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public List<BookResponse> getBooksByGenre(String genreName) {
-        return bookRepository.findBooksByGenre(genreName)
+        return bookRepository.findBooksByGenre(Genre.valueOf(genreName))
                 .stream()
                 .map(book -> modelMapper.map(book, BookResponse.class))
                 .toList();
+    }
+
+    @Override
+    public OrderRequiredResponse getOrderRequiredByBookId(UUID id) {
+        Book book = getOrThrow(id);
+        ForecastResponse forecastResponse = forecastService.getForecastByBookId(id);
+        if (forecastResponse.getErrorMessage() == null) {
+            OrderRequiredResponse orderRequiredResponse = modelMapper.map(forecastResponse, OrderRequiredResponse.class);
+            orderRequiredResponse.setCurrentAmount(getOrThrow(id).getAmount());
+            orderRequiredResponse.setIsOrderRequired(forecastResponse.getOrderPoint() >= getOrThrow(id).getAmount());
+            orderRequiredResponse.setIsForecastCreated(true);
+            orderRequiredResponse.setForecastId(forecastResponse.getId());
+            orderRequiredResponse.setBookTitle(book.getTitle());
+            return orderRequiredResponse;
+        }
+        log.warn(forecastResponse.getErrorMessage());
+        return OrderRequiredResponse.builder()
+                .isForecastCreated(false)
+                .bookId(id)
+                .bookTitle(book.getTitle())
+                .currentAmount(getOrThrow(id).getAmount())
+                .build();
+    }
+
+    @Override
+    public Resource getExcelAllForecasts() {
+        return ExcelUtil.generateForecastExport(
+                bookRepository.findAll().stream()
+                        .map(book -> getOrderRequiredByBookId(book.getId()))
+                        .toList());
     }
 
     private Book getOrThrow(UUID id) {

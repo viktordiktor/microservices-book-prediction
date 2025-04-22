@@ -1,16 +1,12 @@
 package com.nikanenka.dto;
 
-import com.nikanenka.models.ForecastMethod;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.PastOrPresent;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -21,13 +17,11 @@ public class ForecastRequest {
     @NotNull
     private UUID bookId;
     @NotNull
-    @Past
-    private LocalDate fromDate;
+    private Integer insuranceDays;
     @NotNull
-    @PastOrPresent
-    private LocalDate toDate;
+    private Integer orderLeadTime;
     @NotNull
-    private List<ForecastMethod> methods;
+    private BigDecimal orderPlacementCost;
     @NotNull
-    private Integer daysNecessaryTo;
+    private BigDecimal storageCostPerUnit;
 }

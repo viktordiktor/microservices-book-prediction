@@ -2,6 +2,8 @@ package com.nikanenka.interceptors;
 
 import com.nikanenka.dto.ExceptionResponse;
 import com.nikanenka.exceptions.InvalidDateException;
+import com.nikanenka.exceptions.SellAlreadyExistsException;
+import com.nikanenka.exceptions.SellNotFoundException;
 import com.nikanenka.exceptions.WrongPageableParameterException;
 import com.nikanenka.exceptions.WrongSortFieldException;
 import com.nikanenka.utils.LogList;
@@ -23,13 +25,13 @@ import java.util.List;
 @RestControllerAdvice
 @Slf4j
 public class RestExceptionHandler {
-//    @ExceptionHandler({BookNotFoundException.class, ImageNotFoundException.class})
-//    public ResponseEntity<ExceptionResponse> handleNotFoundException(RuntimeException ex) {
-//        log.error(LogList.LOG_NOT_FOUND_ERROR, ex.getMessage());
-//        return ResponseEntity
-//                .status(HttpStatus.NOT_FOUND)
-//                .body(new ExceptionResponse(ex.getMessage(), HttpStatus.NOT_FOUND));
-//    }
+    @ExceptionHandler({SellNotFoundException.class})
+    public ResponseEntity<ExceptionResponse> handleNotFoundException(RuntimeException ex) {
+        log.error(LogList.LOG_NOT_FOUND_ERROR, ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ExceptionResponse(ex.getMessage(), HttpStatus.NOT_FOUND));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<List<String>> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
@@ -46,13 +48,13 @@ public class RestExceptionHandler {
                 .body(errorMessages);
     }
 
-//    @ExceptionHandler(BookAlreadyExistsException.class)
-//    public ResponseEntity<ExceptionResponse> handleAlreadyExistsException(RuntimeException ex) {
-//        log.error(LogList.LOG_CONFLICT_ERROR, ex.getMessage());
-//        return ResponseEntity
-//                .status(HttpStatus.CONFLICT)
-//                .body(new ExceptionResponse(ex.getMessage(), HttpStatus.CONFLICT));
-//    }
+    @ExceptionHandler(SellAlreadyExistsException.class)
+    public ResponseEntity<ExceptionResponse> handleAlreadyExistsException(RuntimeException ex) {
+        log.error(LogList.LOG_CONFLICT_ERROR, ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ExceptionResponse(ex.getMessage(), HttpStatus.CONFLICT));
+    }
 
     @ExceptionHandler({HttpMessageNotReadableException.class,
             PropertyReferenceException.class, WrongPageableParameterException.class,

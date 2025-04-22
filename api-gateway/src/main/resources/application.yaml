@@ -31,6 +31,15 @@ spring:
               args:
                 name: books-forecast-circuit
                 fallbackUri: redirect:/fallback/books-forecast-service
+        - id: books-order-service
+          uri: lb://BOOKS-ORDER-SERVICE
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: books-order-circuit
+                fallbackUri: redirect:/fallback/books-order-service
         - id: eureka-server
           uri: http://eureka@localhost:8761
           predicates:
@@ -53,7 +62,7 @@ resilience4j.timelimiter:
   configs:
     default:
       cancelRunningFuture: false
-      timeoutDuration: 20s
+      timeoutDuration: 120s
 
 eureka:
   client:

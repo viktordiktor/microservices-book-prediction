@@ -12,7 +12,7 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class BookSellRequest {
+public class BookChangeAmountRequest {
     @NotNull
     private UUID bookId;
     @NotNull

@@ -7,9 +7,15 @@ import com.nikanenka.dto.SellingRequest;
 import com.nikanenka.dto.SellingResponse;
 import com.nikanenka.models.feign.enums.Genre;
 import com.nikanenka.services.SellingService;
+import com.nikanenka.utils.ExcelUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,8 +24,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -79,6 +87,21 @@ public class SellingController {
     @ResponseStatus(HttpStatus.CREATED)
     public SellingResponse createSell(@Valid @RequestBody SellingRequest createSellRequest) {
         return sellingService.createSell(createSellRequest);
+    }
+
+    @PostMapping(path = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<SellingResponse> batchFileCreateOrders(@RequestPart MultipartFile uploadExcelFile) {
+        return sellingService.batchFileCreateOrders(uploadExcelFile);
+    }
+
+    @GetMapping("/template")
+    public ResponseEntity<Resource> downloadOrderTemplate() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ExcelUtil.CONTENT_DISPOSITION_HEADER)
+                .contentType(MediaType.parseMediaType(ExcelUtil.MEDIA_TYPE))
+                .body(new ClassPathResource(ExcelUtil.TEMPLATE_FILE_NAME));
     }
 
     @PutMapping(path = "/{id}")

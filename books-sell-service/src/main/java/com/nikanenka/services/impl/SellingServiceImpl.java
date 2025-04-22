@@ -15,6 +15,7 @@ import com.nikanenka.models.feign.enums.Genre;
 import com.nikanenka.repositories.SellingRepository;
 import com.nikanenka.services.SellingService;
 import com.nikanenka.services.feign.BookService;
+import com.nikanenka.utils.ExcelUtil;
 import com.nikanenka.utils.LogList;
 import com.nikanenka.utils.PageUtil;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -56,6 +58,12 @@ public class SellingServiceImpl implements SellingService {
         List<SellingResponse> sells = page.getContent().stream()
                 .map(sell -> modelMapper.map(sell, SellingResponse.class))
                 .toList();
+        sells.forEach(sell -> {
+            BookResponse bookResponse = bookService.getBookById(sell.getBookId());
+            if (bookResponse.getErrorMessage() == null) {
+                sell.setBookName(bookResponse.getTitle());
+            }
+        });
 
         return PageResponse.<SellingResponse>builder()
                 .objectList(sells)
@@ -88,6 +96,13 @@ public class SellingServiceImpl implements SellingService {
     }
 
     @Override
+    public List<SellingResponse> batchFileCreateOrders(MultipartFile excelFile) {
+        return ExcelUtil.readSellsFromExcel(excelFile).stream()
+                .map(this::createSell)
+                .toList();
+    }
+
+    @Override
     public SellingResponse editSell(UUID id, SellingRequest editSellRequest) {
         Integer existingSellingAmount = getOrThrow(id).getAmount();
 
@@ -111,7 +126,12 @@ public class SellingServiceImpl implements SellingService {
 
     @Override
     public void removeSell(UUID id) {
-        sellingRepository.delete(getOrThrow(id));
+        Selling selling = getOrThrow(id);
+        bookService.sellBook(BookSellRequest.builder()
+                .bookId(selling.getBookId())
+                .amount(-selling.getAmount())
+                .build());
+        sellingRepository.delete(selling);
         log.info(LogList.LOG_DELETE_SELLING, id);
     }
 
