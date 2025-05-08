@@ -13,6 +13,7 @@ const Hero = styled.section`
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+  padding-top: 5%;
 `;
 
 const HeroContent = styled.div`
@@ -78,7 +79,7 @@ const Home = () => {
     const navigate = useNavigate();
 
     const handleClick = () => {
-        navigate('/forecast/create');
+        navigate('/accounting');
     };
 
     return (
@@ -89,14 +90,14 @@ const Home = () => {
                 <Hero>
                     <HeroContent>
                         <HeroTitle>
-                            <HeroTitleLine>Средство учета и</HeroTitleLine>
-                            <HeroTitleLine>прогнозирования спроса книг</HeroTitleLine>
+                            <HeroTitleLine>Управление запасами книжного магазина</HeroTitleLine>
                         </HeroTitle>
                         <HeroSubtitle>
-                            Программное средство, позволяющее вести учет книг и продаж, визуализировать их,
-                            а также выполнять прогнозирование спроса на основе данных за предыдущие периоды
+                            Программное обеспечение для управления книжным ассортиментом:
+                            учёт книг, контроль продаж и заказов,
+                            автоматический расчёт оптимальной стратегии управления запасами
                         </HeroSubtitle>
-                        <Button onClick={handleClick}>Сделать прогноз</Button>
+                        <Button onClick={handleClick}>Учет книг</Button>
                     </HeroContent>
                     <BookPlaceholder/>
                 </Hero>

@@ -1,6 +1,6 @@
 import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {Button, Pagination, Space, Table} from 'antd';
-import {DeleteOutlined} from '@ant-design/icons';
+import {Button, Input, Pagination, Space, Table} from 'antd';
+import {DeleteOutlined, SearchOutlined} from '@ant-design/icons';
 import {useState} from "react";
 import {Link, useNavigate} from "react-router-dom";
 import {fetchForecasts} from "../queries/forecast";
@@ -10,6 +10,8 @@ export const ForecastTableList = () => {
     const [pageSize, setPageSize] = useState(5);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const [searchText, setSearchText] = useState('');
+    const [searchedColumn, setSearchedColumn] = useState('');
 
     const {data, isLoading, isError, error} = useQuery({
         queryKey: ['forecast', pageNumber, pageSize],
@@ -20,6 +22,38 @@ export const ForecastTableList = () => {
     const handlePageChange = (page, pageSize) => {
         setPageNumber(page - 1);
         setPageSize(pageSize);
+    };
+
+    const getColumnSearchProps = (dataIndex) => ({
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
+            <div style={{ padding: 8 }}>
+                <Input
+                    value={selectedKeys[0]}
+                    onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ width: 188, marginBottom: 8, display: 'block' }}
+                />
+                <Button
+                    type="primary"
+                    onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    size="small"
+                    style={{ width: 90 }}
+                >
+                    Поиск
+                </Button>
+            </div>
+        ),
+        filterIcon: (filtered) => (
+            <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+        ),
+        onFilter: (value, record) =>
+            record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+    });
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+        confirm();
+        setSearchText(selectedKeys[0]);
+        setSearchedColumn(dataIndex);
     };
 
     const columns = [
@@ -51,6 +85,7 @@ export const ForecastTableList = () => {
                     {bookTitle}
                 </Link>
             ),
+            ...getColumnSearchProps('bookTitle'),
         },
         {
             title: 'Страховой запас',
@@ -82,11 +117,10 @@ export const ForecastTableList = () => {
         },
         {
             title: 'Дата прогноза',
-            key: 'forecastDate',
+            dataIndex: 'createdDate',
+            key: 'createdDate',
             align: 'center',
-            render: (_, record) => {
-                return Object.keys(record.previousSales)[0]
-            }
+            render: (value) => `${value}`
         },
         {
             title: 'Действия',

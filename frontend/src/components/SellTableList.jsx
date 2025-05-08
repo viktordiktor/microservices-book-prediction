@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Pagination, Space, Table, message } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Button, Input, Pagination, Space, Table, message } from 'antd';
+import { DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState } from "react";
 import { fetchSells, deleteSell } from "../queries/sells";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,6 +8,8 @@ import { Link, useNavigate } from "react-router-dom";
 export const SellTableList = () => {
     const [pageNumber, setPageNumber] = useState(0);
     const [pageSize, setPageSize] = useState(5);
+    const [searchText, setSearchText] = useState('');
+    const [searchedColumn, setSearchedColumn] = useState('');
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [messageApi, contextHolder] = message.useMessage();
@@ -17,6 +19,38 @@ export const SellTableList = () => {
         queryFn: () => fetchSells(pageNumber, pageSize, "date", "desc"),
         keepPreviousData: true,
     });
+
+    const getColumnSearchProps = (dataIndex) => ({
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
+            <div style={{ padding: 8 }}>
+                <Input
+                    value={selectedKeys[0]}
+                    onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ width: 188, marginBottom: 8, display: 'block' }}
+                />
+                <Button
+                    type="primary"
+                    onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    size="small"
+                    style={{ width: 90 }}
+                >
+                    Поиск
+                </Button>
+            </div>
+        ),
+        filterIcon: (filtered) => (
+            <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+        ),
+        onFilter: (value, record) =>
+            record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+    });
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+        confirm();
+        setSearchText(selectedKeys[0]);
+        setSearchedColumn(dataIndex);
+    };
 
     const handlePageChange = (page, pageSize) => {
         setPageNumber(page - 1);
@@ -59,6 +93,7 @@ export const SellTableList = () => {
             title: 'Название книги',
             dataIndex: 'bookName',
             key: 'bookName',
+            ...getColumnSearchProps('bookName'), // Добавляем поиск для колонки
             render: (bookName, record) => (
                 <Link to={`/books/${record.bookId}`}>
                     {bookName}
@@ -108,7 +143,7 @@ export const SellTableList = () => {
                 total={data?.totalElements}
                 onChange={handlePageChange}
                 style={{ justifyContent: 'center', marginTop: '10px' }}
-                showSizeChanger={false}  // Отключен выбор количества элементов
+                showSizeChanger={false}
             />
         </>
     );

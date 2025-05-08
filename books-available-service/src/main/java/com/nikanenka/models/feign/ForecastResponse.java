@@ -29,5 +29,7 @@ public class ForecastResponse {
     private Double optimalBatchSize;
     private Integer roundedOptimalBatchSize;
     private Map<LocalDate, Integer> previousSales;
+    private LocalDate createdDate;
+    private Integer currentAmount;
     private String errorMessage;
 }

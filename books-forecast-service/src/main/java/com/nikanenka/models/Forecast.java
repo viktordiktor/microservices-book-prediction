@@ -53,6 +53,9 @@ public class Forecast {
     @Column(name = "insurance_stock")
     private Double insuranceStock;
 
+    @Column(name = "current_amount")
+    private Integer currentAmount;
+
     @Column(name = "rounded_insurance_stock")
     private Integer roundedInsuranceStock;
 
@@ -76,6 +79,9 @@ public class Forecast {
 
     @Column(name = "rounded_optimal_batch_size")
     private Integer roundedOptimalBatchSize;
+
+    @Column(name = "created_date")
+    private LocalDate createdDate;
 
     @ElementCollection(fetch= FetchType.EAGER)
     @CollectionTable(name = "previous_sales", joinColumns = @JoinColumn(name = "forecast_id"))

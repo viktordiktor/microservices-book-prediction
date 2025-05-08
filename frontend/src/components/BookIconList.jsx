@@ -70,9 +70,10 @@ const RowWrapper = styled.div`
 const CardContainer = styled.div`
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: 80%;
+  margin: 0 auto; 
   overflow-y: auto;
-  max-height: 500px; /* Reduced max-height */
+  max-height: 500px;
   padding: 20px;
   background-color: #f4f4f4;
 `;

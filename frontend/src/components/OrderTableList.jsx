@@ -1,6 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Table, Space, Tag, message } from 'antd';
-import { DeleteOutlined, EditOutlined, CheckOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import {Button, Table, Space, Tag, message, Input} from 'antd';
+import {
+    DeleteOutlined,
+    EditOutlined,
+    CheckOutlined,
+    ClockCircleOutlined,
+    CheckCircleOutlined,
+    SearchOutlined
+} from '@ant-design/icons';
 import { useState } from "react";
 import AddEditOrderModal from "./modal/AddEditOrderModal";
 import { fetchOrders, processOrder } from "../queries/orders";
@@ -18,6 +25,8 @@ export const OrderTableList = () => {
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [orderToEdit, setOrderToEdit] = useState(null);
+    const [searchText, setSearchText] = useState('');
+    const [searchedColumn, setSearchedColumn] = useState('');
 
     const handleProcessOrder = async (orderId) => {
         try {
@@ -28,6 +37,39 @@ export const OrderTableList = () => {
             messageApi.error('Ошибка при обработке заказа');
             console.error(err);
         }
+    };
+
+
+    const getColumnSearchProps = (dataIndex) => ({
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
+            <div style={{ padding: 8 }}>
+                <Input
+                    value={selectedKeys[0]}
+                    onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ width: 188, marginBottom: 8, display: 'block' }}
+                />
+                <Button
+                    type="primary"
+                    onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    size="small"
+                    style={{ width: 90 }}
+                >
+                    Поиск
+                </Button>
+            </div>
+        ),
+        filterIcon: (filtered) => (
+            <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+        ),
+        onFilter: (value, record) =>
+            record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+    });
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+        confirm();
+        setSearchText(selectedKeys[0]);
+        setSearchedColumn(dataIndex);
     };
 
     const columns = [
@@ -47,6 +89,7 @@ export const OrderTableList = () => {
                     {bookTitle}
                 </Link>
             ),
+            ...getColumnSearchProps('bookTitle'),
         },
         {
             title: 'Количество',

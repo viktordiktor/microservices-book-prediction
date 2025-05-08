@@ -20,6 +20,7 @@ public class ForecastResponse {
     private String bookTitle;
     private Integer insuranceDays;
     private Integer orderLeadTime;
+    private Integer currentAmount;
     private BigDecimal orderPlacementCost;
     private BigDecimal storageCostPerUnit;
     private Double insuranceStock;
@@ -28,5 +29,6 @@ public class ForecastResponse {
     private Integer roundedOrderPoint;
     private Double optimalBatchSize;
     private Integer roundedOptimalBatchSize;
+    private LocalDate createdDate;
     private Map<LocalDate, Integer> previousSales;
 }

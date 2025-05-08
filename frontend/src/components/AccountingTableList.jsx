@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Table, Space, Tag, message, Tooltip } from 'antd';
+import {Button, Table, Space, Tag, message, Tooltip, Input} from 'antd';
 import {
     CheckCircleOutlined,
     ExclamationCircleOutlined,
     WarningOutlined,
     LineChartOutlined,
-    SyncOutlined
+    SyncOutlined, SearchOutlined
 } from '@ant-design/icons';
 import { Link, useNavigate } from "react-router-dom";
 import { getOrderForecasts } from "../queries/books";
@@ -52,6 +52,8 @@ export const AccountingTableList = () => {
     const [messageApi, contextHolder] = message.useMessage();
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 7; // Фиксированный размер страницы
+    const [searchText, setSearchText] = useState('');
+    const [searchedColumn, setSearchedColumn] = useState('');
 
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['orderForecasts', currentPage],
@@ -94,6 +96,38 @@ export const AccountingTableList = () => {
         setCurrentPage(page);
     };
 
+    const getColumnSearchProps = (dataIndex) => ({
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
+            <div style={{ padding: 8 }}>
+                <Input
+                    value={selectedKeys[0]}
+                    onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ width: 188, marginBottom: 8, display: 'block' }}
+                />
+                <Button
+                    type="primary"
+                    onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    size="small"
+                    style={{ width: 90 }}
+                >
+                    Поиск
+                </Button>
+            </div>
+        ),
+        filterIcon: (filtered) => (
+            <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+        ),
+        onFilter: (value, record) =>
+            record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+    });
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+        confirm();
+        setSearchText(selectedKeys[0]);
+        setSearchedColumn(dataIndex);
+    };
+
     const columns = [
         {
             title: 'Статус',
@@ -118,6 +152,7 @@ export const AccountingTableList = () => {
                     {bookTitle}
                 </Link>
             ),
+            ...getColumnSearchProps('bookTitle'),
         },
         {
             title: 'Прогноз',

@@ -1,32 +1,32 @@
-import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {Button, Modal, Pagination, Space, Table} from 'antd';
-import {AreaChartOutlined, DeleteOutlined, EditOutlined} from '@ant-design/icons';
-import {useState} from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Input, Modal, Pagination, Space, Table } from 'antd';
+import { AreaChartOutlined, DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
+import { useState } from "react";
 import AddEditBookModal from "./modal/AddEditBookModal";
-import {fetchBooks} from "../queries/books";
-import {Link, useNavigate} from "react-router-dom";
-import {getSellByAuthorAndDates, getSellByGenreAndDates} from "../queries/sells";
-import {getDates} from "../utils/utilFuncs";
+import { fetchBooks } from "../queries/books";
+import { Link, useNavigate } from "react-router-dom";
+import { getSellByAuthorAndDates, getSellByGenreAndDates } from "../queries/sells";
+import { getDates } from "../utils/utilFuncs";
 import SalesChart from "./SalesChart";
 import styled from "styled-components";
 
 const ModalContent = styled.div`
   display: flex;
-  justify-content: center;  /* Центруем содержимое по горизонтали */
-  align-items: center;  /* Центруем содержимое по вертикали */
-  width: 100%;  /* Занимаем всю ширину */
-  padding: 20px;  /* Добавляем отступы */
-  box-sizing: border-box;  /* Учитываем отступы в ширине */
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
 `;
 
 const ChartModal = styled(Modal)`
-    margin-right: 350px;
+  margin-right: 350px;
   .ant-modal-content {
-    width: 80vw;  /* Ширина модального окна */
-    max-width: 900px;  /* Максимальная ширина */
+    width: 80vw;
+    max-width: 900px;
   }
   .ant-modal-body {
-    padding: 0;  /* Убираем внутренние отступы */
+    padding: 0;
   }
 `;
 
@@ -39,16 +39,18 @@ export const BookTableList = () => {
     const [chartModalVisible, setChartModalVisible] = useState(false);
     const [chartData, setChartData] = useState([]);
     const [chartTitle, setChartTitle] = useState("");
+    const [searchText, setSearchText] = useState('');
+    const [searchedColumn, setSearchedColumn] = useState('');
 
     const handleGenreClick = async (genre) => {
         const { startDate, endDate } = getDates();
         try {
             const data = await getSellByGenreAndDates(genre, startDate, endDate);
-            const formattedChartData = data.map(item => ({ // Format data for SalesChart
+            const formattedChartData = data.map(item => ({
                 name: item.date,
                 value: item.amount,
             }));
-            setChartData(formattedChartData);  // Set the formatted data
+            setChartData(formattedChartData);
             setChartTitle("График продаж по жанру за последний месяц");
             setChartModalVisible(true);
         } catch (error) {
@@ -60,11 +62,11 @@ export const BookTableList = () => {
         const { startDate, endDate } = getDates();
         try {
             const data = await getSellByAuthorAndDates(author, startDate, endDate);
-            const formattedChartData = data.map(item => ({ // Format data for SalesChart
+            const formattedChartData = data.map(item => ({
                 name: item.date,
                 value: item.amount,
             }));
-            setChartData(formattedChartData);  // Set the formatted data
+            setChartData(formattedChartData);
             setChartTitle("График продаж по автору за последний месяц");
             setChartModalVisible(true);
         } catch (error) {
@@ -72,17 +74,49 @@ export const BookTableList = () => {
         }
     };
 
+    const getColumnSearchProps = (dataIndex) => ({
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
+            <div style={{ padding: 8 }}>
+                <Input
+                    value={selectedKeys[0]}
+                    onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                    onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    style={{ width: 188, marginBottom: 8, display: 'block' }}
+                />
+                <Button
+                    type="primary"
+                    onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+                    size="small"
+                    style={{ width: 90 }}
+                >
+                    Поиск
+                </Button>
+            </div>
+        ),
+        filterIcon: (filtered) => (
+            <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+        ),
+        onFilter: (value, record) =>
+            record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+    });
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+        confirm();
+        setSearchText(selectedKeys[0]);
+        setSearchedColumn(dataIndex);
+    };
+
     const genres = [
-        {value: 'NOVEL', label: 'Роман'},
-        {value: 'POEMS', label: 'Стихи'},
-        {value: 'FANTASY', label: 'Фентези'},
-        {value: 'SCIENTIFIC', label: 'Научная литература'},
-        {value: 'TALE', label: 'Сказка'},
-        {value: 'BIOGRAPHY', label: 'Биография'},
-        {value: 'OTHER', label: 'Другое'},
+        { value: 'NOVEL', label: 'Роман' },
+        { value: 'POEMS', label: 'Стихи' },
+        { value: 'FANTASY', label: 'Фентези' },
+        { value: 'SCIENTIFIC', label: 'Научная литература' },
+        { value: 'TALE', label: 'Сказка' },
+        { value: 'BIOGRAPHY', label: 'Биография' },
+        { value: 'OTHER', label: 'Другое' },
     ];
 
-    const {data, isLoading, isError, error} = useQuery({
+    const { data, isLoading, isError, error } = useQuery({
         queryKey: ['books', pageNumber, pageSize],
         queryFn: () => fetchBooks(pageNumber, pageSize),
         keepPreviousData: true,
@@ -94,15 +128,15 @@ export const BookTableList = () => {
     };
 
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [bookToEdit, setBookToEdit] = useState(null); // Состояние для книги, которую нужно редактировать
+    const [bookToEdit, setBookToEdit] = useState(null);
 
     const columns = [
         {
             title: 'ID',
             dataIndex: 'id',
             key: 'id',
-            render: (id) => ( // Custom render function for the ID column
-                <Link to={`/books/${id}`} onClick={(e) => {e.preventDefault(); navigate(`/books/${id}`)}}> {/* Add Link and onClick handler */}
+            render: (id) => (
+                <Link to={`/books/${id}`} onClick={(e) => { e.preventDefault(); navigate(`/books/${id}`); }}>
                     {id}
                 </Link>
             ),
@@ -111,6 +145,7 @@ export const BookTableList = () => {
             title: 'Название',
             dataIndex: 'title',
             key: 'title',
+            ...getColumnSearchProps('title'),
         },
         {
             title: 'Жанр',
@@ -151,18 +186,19 @@ export const BookTableList = () => {
             key: 'action',
             render: (text, record) => (
                 <Space size="middle">
-                    <Button type="primary" shape="circle" icon={<AreaChartOutlined/>}
-                            onClick={() => handlePrediction(record.id)}/>
-                    <Button type="primary" shape="circle" icon={<EditOutlined/>} onClick={() => handleEdit(record.id)}/>
-                    <Button type="primary" danger shape="circle" icon={<DeleteOutlined/>}
-                            onClick={() => handleDelete(record.id)}/>
+                    <Button type="primary" shape="circle" icon={<AreaChartOutlined />}
+                            onClick={() => handlePrediction(record.id)} />
+                    <Button type="primary" shape="circle" icon={<EditOutlined />}
+                            onClick={() => handleEdit(record.id)} />
+                    <Button type="primary" danger shape="circle" icon={<DeleteOutlined />}
+                            onClick={() => handleDelete(record.id)} />
                 </Space>
             ),
         },
     ];
 
     const handleSave = (savedBook) => {
-        if (bookToEdit) { // Editing existing book
+        if (bookToEdit) {
             queryClient.setQueryData(['books', pageNumber, pageSize], oldData => {
                 if (!oldData || !oldData.objectList) return oldData;
                 const newObjectList = oldData.objectList.map(book =>
@@ -170,8 +206,8 @@ export const BookTableList = () => {
                 );
                 return { ...oldData, objectList: newObjectList };
             });
-        } else { // Adding new book - less critical to update immediately
-            queryClient.invalidateQueries(['books']); // Refetch the list later
+        } else {
+            queryClient.invalidateQueries(['books']);
         }
         setIsModalVisible(false);
         setBookToEdit(null);
@@ -201,7 +237,6 @@ export const BookTableList = () => {
         // Add your delete logic here
     };
 
-
     if (isLoading) {
         return <p>Загрузка...</p>;
     }
@@ -217,7 +252,7 @@ export const BookTableList = () => {
             <Table
                 columns={columns}
                 dataSource={dataSource}
-                style={{width: '100%'}}
+                style={{ width: '100%' }}
                 pagination={false}
             />
             <Pagination
@@ -225,10 +260,14 @@ export const BookTableList = () => {
                 pageSize={pageSize}
                 total={data?.totalElements}
                 onChange={handlePageChange}
-                style={{justifyContent: 'center', marginTop: '10px'}}
+                style={{ justifyContent: 'center', marginTop: '10px' }}
             />
-            <AddEditBookModal visible={isModalVisible} onCancel={handleCancel}  onSave={handleSave}
-                              book={bookToEdit}/>
+            <AddEditBookModal
+                visible={isModalVisible}
+                onCancel={handleCancel}
+                onSave={handleSave}
+                book={bookToEdit}
+            />
             <ChartModal
                 centered
                 visible={chartModalVisible}

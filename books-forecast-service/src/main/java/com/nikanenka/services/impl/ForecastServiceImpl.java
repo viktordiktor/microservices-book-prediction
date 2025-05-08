@@ -138,6 +138,9 @@ public class ForecastServiceImpl implements ForecastService {
         savingForecast.setOptimalBatchSize(optimalBatch);
         savingForecast.setRoundedOptimalBatchSize((int) Math.ceil(optimalBatch));
 
+        savingForecast.setCreatedDate(LocalDate.now());
+        savingForecast.setCurrentAmount(book.getAmount());
+
         forecastRepository.save(savingForecast);
         return modelMapper.map(savingForecast, ForecastResponse.class);
     }
